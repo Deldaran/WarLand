@@ -1,0 +1,517 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{93FD1674-E90F-3DC7-82D0-2F65A3997318}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <VcpkgEnabled>false</VcpkgEnabled>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>Warland</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="do_not_import_user.props" Condition="exists('do_not_import_user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\warland\build\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Warland.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Warland</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\warland\build\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Warland.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Warland</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\warland\build\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Warland.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Warland</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\warland\build\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Warland.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Warland</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\warland\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/vcpkg/installed/x64-windows/include" /external:I "C:/vcpkg/installed/x64-windows/include/AL" /external:I "C:/vcpkg/installed/x64-windows/include/bullet" /utf-8</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <ConformanceMode>true</ConformanceMode>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;IMGUI_IMPL_OPENGL_LOADER_GLAD;GLFW_DLL;SPDLOG_SHARED_LIB;SPDLOG_COMPILED_LIB;SPDLOG_FMT_EXTERNAL;FMT_SHARED;LUA_BUILD_AS_DLL;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;IMGUI_IMPL_OPENGL_LOADER_GLAD;GLFW_DLL;SPDLOG_SHARED_LIB;SPDLOG_COMPILED_LIB;SPDLOG_FMT_EXTERNAL;FMT_SHARED;LUA_BUILD_AS_DLL;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\warland\src;C:\vcpkg\installed\x64-windows\include;C:\vcpkg\installed\x64-windows\include\AL;C:\vcpkg\installed\x64-windows\include\bullet;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\warland\src;C:\vcpkg\installed\x64-windows\include;C:\vcpkg\installed\x64-windows\include\AL;C:\vcpkg\installed\x64-windows\include\bullet;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/warland/build/Debug/Warland.exe -installedDir C:/vcpkg/installed/x64-windows/debug/bin -OutVariable out
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>opengl32.lib;C:\vcpkg\installed\x64-windows\debug\lib\glad.lib;C:\vcpkg\installed\x64-windows\debug\lib\glm.lib;C:\vcpkg\installed\x64-windows\debug\lib\spdlogd.lib;C:\vcpkg\installed\x64-windows\debug\lib\OpenAL32.lib;C:\vcpkg\installed\x64-windows\debug\lib\Bullet3Common_Debug.lib;C:\vcpkg\installed\x64-windows\debug\lib\BulletDynamics_Debug.lib;C:\vcpkg\installed\x64-windows\debug\lib\BulletCollision_Debug.lib;C:\vcpkg\installed\x64-windows\debug\lib\LinearMath_Debug.lib;C:\vcpkg\installed\x64-windows\debug\lib\lua.lib;C:\vcpkg\installed\x64-windows\debug\lib\imguid.lib;C:\vcpkg\installed\x64-windows\debug\lib\fmtd.lib;C:\vcpkg\installed\x64-windows\debug\lib\zstd.lib;C:\vcpkg\installed\x64-windows\debug\lib\glfw3dll.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/warland/build/Debug/Warland.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/warland/build/Debug/Warland.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\warland\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/vcpkg/installed/x64-windows/include" /external:I "C:/vcpkg/installed/x64-windows/include/AL" /external:I "C:/vcpkg/installed/x64-windows/include/bullet" /utf-8</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <ConformanceMode>true</ConformanceMode>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;IMGUI_IMPL_OPENGL_LOADER_GLAD;GLFW_DLL;SPDLOG_SHARED_LIB;SPDLOG_COMPILED_LIB;SPDLOG_FMT_EXTERNAL;FMT_SHARED;LUA_BUILD_AS_DLL;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;IMGUI_IMPL_OPENGL_LOADER_GLAD;GLFW_DLL;SPDLOG_SHARED_LIB;SPDLOG_COMPILED_LIB;SPDLOG_FMT_EXTERNAL;FMT_SHARED;LUA_BUILD_AS_DLL;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\warland\src;C:\vcpkg\installed\x64-windows\include;C:\vcpkg\installed\x64-windows\include\AL;C:\vcpkg\installed\x64-windows\include\bullet;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\warland\src;C:\vcpkg\installed\x64-windows\include;C:\vcpkg\installed\x64-windows\include\AL;C:\vcpkg\installed\x64-windows\include\bullet;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/warland/build/Release/Warland.exe -installedDir C:/vcpkg/installed/x64-windows/bin -OutVariable out
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>opengl32.lib;C:\vcpkg\installed\x64-windows\lib\glad.lib;C:\vcpkg\installed\x64-windows\lib\glm.lib;C:\vcpkg\installed\x64-windows\lib\spdlog.lib;C:\vcpkg\installed\x64-windows\lib\OpenAL32.lib;C:\vcpkg\installed\x64-windows\lib\Bullet3Common.lib;C:\vcpkg\installed\x64-windows\lib\BulletDynamics.lib;C:\vcpkg\installed\x64-windows\lib\BulletCollision.lib;C:\vcpkg\installed\x64-windows\lib\LinearMath.lib;C:\vcpkg\installed\x64-windows\lib\lua.lib;C:\vcpkg\installed\x64-windows\lib\imgui.lib;C:\vcpkg\installed\x64-windows\lib\fmt.lib;C:\vcpkg\installed\x64-windows\lib\zstd.lib;C:\vcpkg\installed\x64-windows\lib\glfw3dll.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/warland/build/Release/Warland.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/warland/build/Release/Warland.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\warland\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/vcpkg/installed/x64-windows/include" /external:I "C:/vcpkg/installed/x64-windows/include/AL" /external:I "C:/vcpkg/installed/x64-windows/include/bullet" /utf-8</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <ConformanceMode>true</ConformanceMode>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;IMGUI_IMPL_OPENGL_LOADER_GLAD;GLFW_DLL;SPDLOG_SHARED_LIB;SPDLOG_COMPILED_LIB;SPDLOG_FMT_EXTERNAL;FMT_SHARED;LUA_BUILD_AS_DLL;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;IMGUI_IMPL_OPENGL_LOADER_GLAD;GLFW_DLL;SPDLOG_SHARED_LIB;SPDLOG_COMPILED_LIB;SPDLOG_FMT_EXTERNAL;FMT_SHARED;LUA_BUILD_AS_DLL;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\warland\src;C:\vcpkg\installed\x64-windows\include;C:\vcpkg\installed\x64-windows\include\AL;C:\vcpkg\installed\x64-windows\include\bullet;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\warland\src;C:\vcpkg\installed\x64-windows\include;C:\vcpkg\installed\x64-windows\include\AL;C:\vcpkg\installed\x64-windows\include\bullet;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/warland/build/MinSizeRel/Warland.exe -installedDir C:/vcpkg/installed/x64-windows/bin -OutVariable out
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>opengl32.lib;C:\vcpkg\installed\x64-windows\lib\glad.lib;C:\vcpkg\installed\x64-windows\lib\glm.lib;C:\vcpkg\installed\x64-windows\lib\spdlog.lib;C:\vcpkg\installed\x64-windows\lib\OpenAL32.lib;C:\vcpkg\installed\x64-windows\lib\Bullet3Common.lib;C:\vcpkg\installed\x64-windows\lib\BulletDynamics.lib;C:\vcpkg\installed\x64-windows\lib\BulletCollision.lib;C:\vcpkg\installed\x64-windows\lib\LinearMath.lib;C:\vcpkg\installed\x64-windows\lib\lua.lib;C:\vcpkg\installed\x64-windows\lib\imgui.lib;C:\vcpkg\installed\x64-windows\lib\fmt.lib;C:\vcpkg\installed\x64-windows\lib\zstd.lib;C:\vcpkg\installed\x64-windows\lib\glfw3dll.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/warland/build/MinSizeRel/Warland.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/warland/build/MinSizeRel/Warland.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\warland\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/vcpkg/installed/x64-windows/include" /external:I "C:/vcpkg/installed/x64-windows/include/AL" /external:I "C:/vcpkg/installed/x64-windows/include/bullet" /utf-8</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <ConformanceMode>true</ConformanceMode>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;IMGUI_IMPL_OPENGL_LOADER_GLAD;GLFW_DLL;SPDLOG_SHARED_LIB;SPDLOG_COMPILED_LIB;SPDLOG_FMT_EXTERNAL;FMT_SHARED;LUA_BUILD_AS_DLL;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;IMGUI_IMPL_OPENGL_LOADER_GLAD;GLFW_DLL;SPDLOG_SHARED_LIB;SPDLOG_COMPILED_LIB;SPDLOG_FMT_EXTERNAL;FMT_SHARED;LUA_BUILD_AS_DLL;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\warland\src;C:\vcpkg\installed\x64-windows\include;C:\vcpkg\installed\x64-windows\include\AL;C:\vcpkg\installed\x64-windows\include\bullet;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\warland\src;C:\vcpkg\installed\x64-windows\include;C:\vcpkg\installed\x64-windows\include\AL;C:\vcpkg\installed\x64-windows\include\bullet;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/warland/build/RelWithDebInfo/Warland.exe -installedDir C:/vcpkg/installed/x64-windows/bin -OutVariable out
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>opengl32.lib;C:\vcpkg\installed\x64-windows\lib\glad.lib;C:\vcpkg\installed\x64-windows\lib\glm.lib;C:\vcpkg\installed\x64-windows\lib\spdlog.lib;C:\vcpkg\installed\x64-windows\lib\OpenAL32.lib;C:\vcpkg\installed\x64-windows\lib\Bullet3Common.lib;C:\vcpkg\installed\x64-windows\lib\BulletDynamics.lib;C:\vcpkg\installed\x64-windows\lib\BulletCollision.lib;C:\vcpkg\installed\x64-windows\lib\LinearMath.lib;C:\vcpkg\installed\x64-windows\lib\lua.lib;C:\vcpkg\installed\x64-windows\lib\imgui.lib;C:\vcpkg\installed\x64-windows\lib\fmt.lib;C:\vcpkg\installed\x64-windows\lib\zstd.lib;C:\vcpkg\installed\x64-windows\lib\glfw3dll.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/warland/build/RelWithDebInfo/Warland.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/warland/build/RelWithDebInfo/Warland.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\warland\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/warland/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/warland -BC:/warland/build --check-stamp-file C:/warland/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeFindDependencyMacro.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CheckCXXSourceCompiles.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CheckIncludeFileCXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CheckLibraryExists.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\FindPackageMessage.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\FindThreads.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Internal\CheckSourceCompiles.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\WindowsPaths.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletConfig.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletTargets.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-config-version.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-config.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-targets-debug.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-targets-release.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-targets.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladConfig.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladTargets.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Config.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3ConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Targets-debug.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Targets-release.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Targets.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfig-debug.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfig-release.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfig.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-config.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-targets-debug.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-targets-release.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-targets.cmake;C:\vcpkg\installed\x64-windows\share\lua\vcpkg-cmake-wrapper.cmake;C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfig.cmake;C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_jsonTargets.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALConfig.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALTargets.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfig.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigTargets.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\unofficial-lua\unofficial-lua-config-debug.cmake;C:\vcpkg\installed\x64-windows\share\unofficial-lua\unofficial-lua-config-release.cmake;C:\vcpkg\installed\x64-windows\share\unofficial-lua\unofficial-lua-config.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdConfig.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdTargets.cmake;C:\vcpkg\scripts\buildsystems\vcpkg.cmake;C:\warland\build\CMakeFiles\4.0.3\CMakeCXXCompiler.cmake;C:\warland\build\CMakeFiles\4.0.3\CMakeRCCompiler.cmake;C:\warland\build\CMakeFiles\4.0.3\CMakeSystem.cmake;C:\warland\build\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\warland\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/warland/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/warland -BC:/warland/build --check-stamp-file C:/warland/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeFindDependencyMacro.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CheckCXXSourceCompiles.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CheckIncludeFileCXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CheckLibraryExists.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\FindPackageMessage.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\FindThreads.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Internal\CheckSourceCompiles.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\WindowsPaths.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletConfig.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletTargets.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-config-version.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-config.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-targets-debug.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-targets-release.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-targets.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladConfig.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladTargets.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Config.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3ConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Targets-debug.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Targets-release.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Targets.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfig-debug.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfig-release.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfig.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-config.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-targets-debug.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-targets-release.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-targets.cmake;C:\vcpkg\installed\x64-windows\share\lua\vcpkg-cmake-wrapper.cmake;C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfig.cmake;C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_jsonTargets.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALConfig.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALTargets.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfig.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigTargets.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\unofficial-lua\unofficial-lua-config-debug.cmake;C:\vcpkg\installed\x64-windows\share\unofficial-lua\unofficial-lua-config-release.cmake;C:\vcpkg\installed\x64-windows\share\unofficial-lua\unofficial-lua-config.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdConfig.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdTargets.cmake;C:\vcpkg\scripts\buildsystems\vcpkg.cmake;C:\warland\build\CMakeFiles\4.0.3\CMakeCXXCompiler.cmake;C:\warland\build\CMakeFiles\4.0.3\CMakeRCCompiler.cmake;C:\warland\build\CMakeFiles\4.0.3\CMakeSystem.cmake;C:\warland\build\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\warland\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule C:/warland/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/warland -BC:/warland/build --check-stamp-file C:/warland/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeFindDependencyMacro.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CheckCXXSourceCompiles.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CheckIncludeFileCXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CheckLibraryExists.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\FindPackageMessage.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\FindThreads.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Internal\CheckSourceCompiles.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\WindowsPaths.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletConfig.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletTargets.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-config-version.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-config.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-targets-debug.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-targets-release.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-targets.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladConfig.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladTargets.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Config.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3ConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Targets-debug.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Targets-release.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Targets.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfig-debug.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfig-release.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfig.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-config.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-targets-debug.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-targets-release.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-targets.cmake;C:\vcpkg\installed\x64-windows\share\lua\vcpkg-cmake-wrapper.cmake;C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfig.cmake;C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_jsonTargets.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALConfig.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALTargets.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfig.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigTargets.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\unofficial-lua\unofficial-lua-config-debug.cmake;C:\vcpkg\installed\x64-windows\share\unofficial-lua\unofficial-lua-config-release.cmake;C:\vcpkg\installed\x64-windows\share\unofficial-lua\unofficial-lua-config.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdConfig.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdTargets.cmake;C:\vcpkg\scripts\buildsystems\vcpkg.cmake;C:\warland\build\CMakeFiles\4.0.3\CMakeCXXCompiler.cmake;C:\warland\build\CMakeFiles\4.0.3\CMakeRCCompiler.cmake;C:\warland\build\CMakeFiles\4.0.3\CMakeSystem.cmake;C:\warland\build\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\warland\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule C:/warland/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/warland -BC:/warland/build --check-stamp-file C:/warland/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeFindDependencyMacro.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CheckCXXSourceCompiles.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CheckIncludeFileCXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\CheckLibraryExists.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\FindPackageMessage.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\FindThreads.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Internal\CheckSourceCompiles.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.0\Modules\Platform\WindowsPaths.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletConfig.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\bullet3\BulletTargets.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-config-version.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-config.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-targets-debug.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-targets-release.cmake;C:\vcpkg\installed\x64-windows\share\fmt\fmt-targets.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladConfig.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\glad\gladTargets.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Config.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3ConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Targets-debug.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Targets-release.cmake;C:\vcpkg\installed\x64-windows\share\glfw3\glfw3Targets.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfig-debug.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfig-release.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfig.cmake;C:\vcpkg\installed\x64-windows\share\glm\glmConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-config.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-targets-debug.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-targets-release.cmake;C:\vcpkg\installed\x64-windows\share\imgui\imgui-targets.cmake;C:\vcpkg\installed\x64-windows\share\lua\vcpkg-cmake-wrapper.cmake;C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfig.cmake;C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_jsonTargets.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALConfig.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\openal-soft\OpenALTargets.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfig.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigTargets.cmake;C:\vcpkg\installed\x64-windows\share\spdlog\spdlogConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\unofficial-lua\unofficial-lua-config-debug.cmake;C:\vcpkg\installed\x64-windows\share\unofficial-lua\unofficial-lua-config-release.cmake;C:\vcpkg\installed\x64-windows\share\unofficial-lua\unofficial-lua-config.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdConfig.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdConfigVersion.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdTargets-debug.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdTargets-release.cmake;C:\vcpkg\installed\x64-windows\share\zstd\zstdTargets.cmake;C:\vcpkg\scripts\buildsystems\vcpkg.cmake;C:\warland\build\CMakeFiles\4.0.3\CMakeCXXCompiler.cmake;C:\warland\build\CMakeFiles\4.0.3\CMakeRCCompiler.cmake;C:\warland\build\CMakeFiles\4.0.3\CMakeSystem.cmake;C:\warland\build\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\warland\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="C:\warland\src\main.cpp" />
+    <ClCompile Include="C:\warland\src\Core\Application.cpp" />
+    <ClCompile Include="C:\warland\src\Core\HUD.cpp" />
+    <ClCompile Include="C:\warland\src\Core\LoadingScreen.cpp" />
+    <ClCompile Include="C:\warland\src\Engine\Rendering\GL\TileAtlas.cpp" />
+    <ClCompile Include="C:\warland\src\Engine\Rendering\GL\TileMap.cpp" />
+    <ClCompile Include="C:\warland\src\Engine\Rendering\GL\TileRenderer2D.cpp" />
+    <ClCompile Include="C:\warland\src\Engine\Rendering\GL\stb_image_impl.cpp" />
+    <ClCompile Include="C:\warland\src\Engine\Rendering\World\FarMapRenderer.cpp" />
+    <ClCompile Include="C:\warland\src\Engine\Simulation\Scheduler.cpp" />
+    <ClCompile Include="C:\warland\src\Platform\Input.cpp" />
+    <ClCompile Include="C:\warland\src\Platform\Window.cpp" />
+    <ClCompile Include="C:\warland\src\ThirdParty\stb_image.cpp" />
+    <ClCompile Include="C:\warland\src\Tools\AssetPacker\AzgaarImporter.cpp" />
+    <ClCompile Include="C:\warland\src\Tools\AssetPacker\BiomeMapImporter.cpp" />
+    <ClCompile Include="C:\warland\src\Tools\AssetPacker\WorldGenerator.cpp" />
+    <ClInclude Include="C:\warland\src\Core\Application.h" />
+    <ClInclude Include="C:\warland\src\Core\Config.h" />
+    <ClInclude Include="C:\warland\src\Core\EventBus.h" />
+    <ClInclude Include="C:\warland\src\Core\HUD.h" />
+    <ClInclude Include="C:\warland\src\Core\LoadingScreen.h" />
+    <ClInclude Include="C:\warland\src\Core\Log.h" />
+    <ClInclude Include="C:\warland\src\Core\Time.h" />
+    <ClInclude Include="C:\warland\src\Engine\AI\BehaviorTree.h" />
+    <ClInclude Include="C:\warland\src\Engine\AI\GOAP.h" />
+    <ClInclude Include="C:\warland\src\Engine\AI\Pathfinding.h" />
+    <ClInclude Include="C:\warland\src\Engine\Audio\AudioEngine.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Components\AI.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Components\Name.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Components\Person.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Components\PhysicsBody.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Components\Renderable.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Components\Residence.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Components\Road.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Components\Transform.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Entity.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Registry.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Systems\AISystem.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Systems\EconomySystem.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Systems\MessagingSystem.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Systems\NavigationSystem.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Systems\PhysicsSystem.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Systems\RenderingSystem.h" />
+    <ClInclude Include="C:\warland\src\Engine\ECS\Systems\TimeSystem.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\Character\Animation.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\Character\CharacterCamera.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\Character\CharacterController.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\Character\Interaction.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\Character\Inventory.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\City\Building.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\City\Citizen.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\City\CityController.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\City\CityGenerator.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\City\JobSystem.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\City\TrafficSystem.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\City\UtilityNetworks.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\Common\Calendar.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\Common\Diplomacy.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\Common\Economy.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\Common\Factions.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\Common\Messaging.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\WorldMap\Country.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\WorldMap\Courier.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\WorldMap\FogOfWar.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\WorldMap\MapGenerator.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\WorldMap\Province.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\WorldMap\RoadNetwork.h" />
+    <ClInclude Include="C:\warland\src\Engine\Gameplay\WorldMap\WorldMapController.h" />
+    <ClInclude Include="C:\warland\src\Engine\Physics\Collision.h" />
+    <ClInclude Include="C:\warland\src\Engine\Physics\NavMesh.h" />
+    <ClInclude Include="C:\warland\src\Engine\Physics\Physics.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\Camera.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\GL\TileAtlas.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\GL\TileMap.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\GL\TileRenderer2D.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\Mesh.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\Renderer.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\SceneGraph.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\Shader.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\Terrain.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\Texture.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\UI\ImGuiLayer.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\UI\UIManager.h" />
+    <ClInclude Include="C:\warland\src\Engine\Rendering\World\FarMapRenderer.h" />
+    <ClInclude Include="C:\warland\src\Engine\Resources\AssetLoader.h" />
+    <ClInclude Include="C:\warland\src\Engine\Resources\ResourceManager.h" />
+    <ClInclude Include="C:\warland\src\Engine\Scripting\Scripting.h" />
+    <ClInclude Include="C:\warland\src\Engine\Simulation\LOD.h" />
+    <ClInclude Include="C:\warland\src\Engine\Simulation\SaveGame.h" />
+    <ClInclude Include="C:\warland\src\Engine\Simulation\Scheduler.h" />
+    <ClInclude Include="C:\warland\src\Engine\Simulation\Timewarp.h" />
+    <ClInclude Include="C:\warland\src\Engine\UI\CharacterUI.h" />
+    <ClInclude Include="C:\warland\src\Engine\UI\CityUI.h" />
+    <ClInclude Include="C:\warland\src\Engine\UI\HUD.h" />
+    <ClInclude Include="C:\warland\src\Engine\UI\MapUI.h" />
+    <ClInclude Include="C:\warland\src\Engine\UI\Menus.h" />
+    <ClInclude Include="C:\warland\src\Engine\UI\Overlays.h" />
+    <ClInclude Include="C:\warland\src\Platform\FileSystem.h" />
+    <ClInclude Include="C:\warland\src\Platform\Input.h" />
+    <ClInclude Include="C:\warland\src\Platform\Window.h" />
+    <ClInclude Include="C:\warland\src\Tools\AssetPacker\AssetPackerApp.h" />
+    <ClInclude Include="C:\warland\src\Tools\AssetPacker\AzgaarImporter.h" />
+    <ClInclude Include="C:\warland\src\Tools\AssetPacker\BiomeMapImporter.h" />
+    <ClInclude Include="C:\warland\src\Tools\CityEditor\CityEditorApp.h" />
+    <ClInclude Include="C:\warland\src\Tools\MapEditor\MapEditorApp.h" />
+    <ClInclude Include="C:\warland\src\Tools\NavmeshBuilder\NavmeshBuilderApp.h" />
+    <Natvis Include="C:\vcpkg\installed\x64-windows\share\nlohmann_json\nlohmann_json.natvis">
+    </Natvis>
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="C:\warland\build\ZERO_CHECK.vcxproj">
+      <Project>{2530F500-3BA4-3406-9C3B-203FA997D695}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

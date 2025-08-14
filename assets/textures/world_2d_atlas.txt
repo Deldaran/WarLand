@@ -1,0 +1,1 @@
+Placeholder atlas: create a PNG atlas at assets/textures/world_2d_atlas.png and define regions in code or JSON.

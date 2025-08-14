@@ -1,0 +1,44 @@
+{
+  // CMake + build + run tasks (PowerShell)
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cmake-configure",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-Command",
+        "${workspaceFolder}/scripts/build.ps1 -Configure"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-Command",
+        "${workspaceFolder}/scripts/build.ps1"
+      ],
+      "group": "build",
+      "dependsOn": ["cmake-configure"]
+    },
+    {
+      "label": "run",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-Command",
+        "${workspaceFolder}/scripts/run.ps1"
+      ],
+      "group": "none",
+      "dependsOn": ["build"]
+    }
+  ]
+}

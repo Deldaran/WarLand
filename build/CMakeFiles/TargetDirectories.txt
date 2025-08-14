@@ -1,0 +1,5 @@
+C:/warland/build/CMakeFiles/Warland.dir
+C:/warland/build/CMakeFiles/RUN_TESTS.dir
+C:/warland/build/CMakeFiles/ALL_BUILD.dir
+C:/warland/build/CMakeFiles/ZERO_CHECK.dir
+C:/warland/build/tests/CMakeFiles/RUN_TESTS.dir
