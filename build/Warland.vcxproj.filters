@@ -28,7 +28,13 @@
     <ClCompile Include="C:\warland\src\Engine\Rendering\World\FarMapRenderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\warland\src\Engine\Rendering\World\SimpleWorldMeshRenderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\warland\src\Engine\Simulation\Scheduler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\warland\src\Engine\WorldGen\BiomeGenerator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\warland\src\Platform\Input.cpp">
@@ -255,6 +261,9 @@
     <ClInclude Include="C:\warland\src\Engine\Rendering\World\FarMapRenderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="C:\warland\src\Engine\Rendering\World\SimpleWorldMeshRenderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="C:\warland\src\Engine\Resources\AssetLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -292,6 +301,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\warland\src\Engine\UI\Overlays.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\warland\src\Engine\WorldGen\BiomeGenerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\warland\src\Platform\FileSystem.h">

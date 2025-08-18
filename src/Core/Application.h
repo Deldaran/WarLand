@@ -12,6 +12,7 @@
 #include "../Engine/Simulation/Scheduler.h"
 #include "../Engine/Rendering/GL/TileMap.h"
 #include "../Engine/Rendering/World/FarMapRenderer.h"
+#include "../Engine/Rendering/World/SimpleWorldMeshRenderer.h"
 #include "HUD.h"
 
 struct GLFWwindow;
@@ -42,6 +43,7 @@ private:
     // Far map world data & renderer
     TileMap worldMap_;
     std::unique_ptr<FarMapRenderer> farMapRenderer_;
+    std::unique_ptr<SimpleWorldMeshRenderer> worldMeshRenderer_; // L2 (zoom proche)
     MapHUD mapHUD_; // HUD manager
 
     bool vsync_ = true;

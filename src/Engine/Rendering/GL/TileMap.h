@@ -36,6 +36,7 @@ struct TileMap {
     std::vector<Road> roads;     // routes (liste de points discrétisés)
     std::vector<std::string> biomeNames; // indexé par biomeId, pour debug (peut être vide si non fourni)
     std::vector<uint32_t> biomeColorsRGB; // couleur originale du biome (0xRRGGBB) indexé par biomeId
+    std::vector<uint64_t> biomeSeeds; // seed procédurale par biome (0 = non initialisé)
     std::vector<float> tileHeights; // hauteur normalisée par cellule raster (width*height)
     std::vector<uint16_t> paletteIndices; // palette index par pixel (0 deep,1 shallow, >=2 biome+2)
     std::vector<CountryInfo> countryInfos; // infos pays (id interne, nom, position)
