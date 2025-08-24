@@ -17,8 +17,12 @@
 #include "../Platform/Window.h"
 #include "../Platform/Input.h"
 #include "../Engine/Simulation/Scheduler.h"
-#include "../Tools/AssetPacker/AzgaarImporter.h"
-#include "../Engine/WorldGen/BiomeGenerator.h"
+#include "../Engine/WorldGen/TerrainNoise.h"
+
+// Global minimal terrain config/state for the viewer
+static TerrainNoiseConfig gNoiseCfg; // defaults defined in header
+static uint64_t gNoiseSeed = 123456789ull;
+static bool gRealtimeGen = true;
 
 static void SetupImGui(GLFWwindow* window) {
     IMGUI_CHECKVERSION();
@@ -29,7 +33,7 @@ static void SetupImGui(GLFWwindow* window) {
     ImGui_ImplGlfw_InitForOpenGL(window, false);
     ImGui_ImplOpenGL3_Init("#version 450");
     // Charger fonte fantasy 8-bit si disponible (placer un .ttf dans assets/fonts)
-    std::filesystem::path fontPath = std::filesystem::path("assets/fonts")/"piston-black.regular.ttf"; // updated filename
+    std::filesystem::path fontPath = std::filesystem::path("assets/fonts")/"Movistar Text Regular.ttf"; // updated filename
     if (std::filesystem::exists(fontPath)) {
         ImFontConfig cfg; cfg.OversampleH=2; cfg.OversampleV=2; cfg.PixelSnapH=true; cfg.SizePixels=16.0f; // taille de base
         io.Fonts->AddFontFromFileTTF(fontPath.string().c_str(), 16.0f, &cfg, io.Fonts->GetGlyphRangesDefault());
@@ -61,49 +65,14 @@ bool Application::init() {
     input_ = std::make_unique<Input>(); input_->init(window_);
     scheduler_ = std::make_unique<Scheduler>();
 
-    // Inline loading with console logs
-    const std::string relPath = "assets/maps/WarLand Full 2025-08-14-10-43.json";
-    std::string fullPath = FindAssetFile(relPath);
-    std::fprintf(stderr, "[Load] Fichier cible: %s (cwd=%s)\n", fullPath.c_str(), std::filesystem::current_path().string().c_str());
-
-    AzgaarImportConfig cfg; cfg.targetWidth=2000; cfg.targetHeight=2000; cfg.keepAzgaarNames=true;
-    AzgaarImportResult azRes;
-    std::fprintf(stderr, "[Load] Import Azgaar...\n");
-    if (!AzgaarImporter::Load(fullPath, cfg, "", 123456789ull, azRes)) {
-        std::fprintf(stderr, "[Load][ERREUR] Echec import: %s\n", fullPath.c_str());
-    } else {
-        std::fprintf(stderr, "[Load] Import OK: cells=%d places=%zu countriesColors=%zu\n", azRes.sourceCellCount, azRes.map.places.size(), azRes.map.countryColorsRGB.size());
-        worldMap_ = std::move(azRes.map);
-        std::fprintf(stderr, "[Load] Map transférée (size=%dx%d)\n", worldMap_.width, worldMap_.height);
-        farMapRenderer_ = std::make_unique<FarMapRenderer>();
-        if (farMapRenderer_->init(&worldMap_)) {
-            std::fprintf(stderr, "[Load] FarMapRenderer initialisé\n");
-        } else {
-            std::fprintf(stderr, "[Load][ERREUR] FarMapRenderer init failed\n");
-        }
-        worldMeshRenderer_ = std::make_unique<SimpleWorldMeshRenderer>();
-        if (worldMeshRenderer_->init(&worldMap_)) {
-            std::fprintf(stderr, "[Load] SimpleWorldMeshRenderer (L2) initialisé\n");
-        } else {
-            std::fprintf(stderr, "[Load][ERREUR] SimpleWorldMeshRenderer init failed\n");
-        }
-
-        // Procedural biome-based generation (heights enrichment) with global seed
-        uint64_t globalSeed = 123456789123ull; // TODO: lire depuis config fichier / sauvegarde
-        // Pour chaque biome référencé dans paletteIndices, assurer une seed puis générer hauteur si pas déjà présente
-        std::vector<bool> biomeSeen(worldMap_.biomeNames.size(), false);
-        for (size_t i=0; i<worldMap_.paletteIndices.size(); ++i) {
-            uint16_t pal = worldMap_.paletteIndices[i];
-            int bId = (pal >= 2) ? (int)pal - 2 : -1;
-            if (bId >= 0 && bId < (int)biomeSeen.size()) biomeSeen[bId] = true;
-        }
-        for (int b=0; b<(int)biomeSeen.size(); ++b) if (biomeSeen[b]) {
-            BiomeGenerator::EnsureBiomeSeed(worldMap_, b, globalSeed);
-            BiomeGenConfig cfg = BiomeGenerator::DefaultConfigFor(b < (int)worldMap_.biomeNames.size() ? worldMap_.biomeNames[b] : std::string(""));
-            BiomeGenerator::GenerateHeightsForBiome(worldMap_, b, cfg);
-        }
-        std::fprintf(stderr, "[Gen] Biome procedural heights generated.\n");
-    }
+    // Minimal synthetic map (no L1)
+    worldMap_.width = 512; worldMap_.height = 512; worldMap_.worldMaxX = 512.f; worldMap_.worldMaxY = 512.f;
+    worldMap_.paletteIndices.assign((size_t)worldMap_.width*worldMap_.height, 2u);
+    worldMeshRenderer_ = std::make_unique<SimpleWorldMeshRenderer>();
+    worldMeshRenderer_->init(&worldMap_);
+    // First terrain
+    TerrainNoise::Generate(worldMap_, gNoiseSeed, gNoiseCfg);
+    worldMeshRenderer_->rebuild(&worldMap_);
 
     lastTime_=glfwGetTime(); accumulator_=0.0; fixedStep_=1.0/60.0; return true;
 }
@@ -130,6 +99,8 @@ void Application::render(double /*dt*/) {
     static const float fpsPitchSwitch   = 60.f; // below this pitch -> FPS style movement
     static const float hideMapHeight    = 180.f; // below this height hide L1 map
     static bool meshWireframe = false; // affichage maillage L2
+    // GPU tess params (shared with UI)
+    static bool autoTessRange = false; static float tessNearD = 250.f, tessFarD = 3000.f; static int tessMinL=1, tessMaxL=24, tessBaseStep=8;
     static int lastW=0, lastH=0; 
     const float mapWidthUnits = worldMap_.worldMaxX > 0 ? worldMap_.worldMaxX : (float)worldMap_.width;
     const float mapHeightUnits = worldMap_.worldMaxY > 0 ? worldMap_.worldMaxY : (float)worldMap_.height;
@@ -145,22 +116,6 @@ void Application::render(double /*dt*/) {
     }
     // Compute synthetic totalZoom (for layer logic) still used by renderers
     float totalZoom = baseZoom * zoomFactor;
-
-    // --- City label configuration (runtime tunable via ImGui) ---
-    static bool  cfgCityEnable          = true;
-    static bool  cfgCityDynamicScale    = true;
-    static bool  cfgCityDistanceFade    = true;
-    static bool  cfgCityAltitudeFade    = true;
-    static float cfgCityMinPx           = 10.f;
-    static float cfgCityMaxPx           = 26.f;
-    static float cfgCityNearDist        = 80.f;     // units
-    static float cfgCityFarDist         = 3000.f;   // units used for scale interpolation
-    static float cfgCityBaseMaxDist     = 3500.f;   // base hard cull distance at ground
-    static float cfgCityHighAltFactor   = 0.25f;    // fraction of base max dist kept at highest altitude
-    static float cfgCityAltitudeFadeStart = 0.55f;  // altitudeT start fade
-    static float cfgCityAltitudeFadeEnd   = 0.90f;  // altitudeT end fade
-    static int   cfgCityMaxLabels       = 400;      // limit drawn
-    static float cfgCityMinAlpha        = 0.07f;    // below -> skip
 
     // Human scale adaptation (configurable)
     static float cfgWorldKmWidth = 2700.f;      // largeur réelle carte (km)
@@ -181,6 +136,51 @@ void Application::render(double /*dt*/) {
     float tHeight = 1.f - powf(1.f - tHeightLin, zoomEasePower);
     if (tHeight < 0.f) tHeight = 0.f; if (tHeight>1.f) tHeight=1.f;
     float camHeight = maxHeight - tHeight * (maxHeight - dynamicMinHeight);
+        // Échantillonner hauteur mesh sous la caméra et empêcher la caméra de passer au travers
+        auto sampleHeight01At = [&](float wx, float wy){
+            if (worldMap_.width<=0 || worldMap_.height<=0 || worldMap_.tileHeights.empty()) return 0.0f;
+            float gx = (worldMap_.worldMaxX>0)? (wx / worldMap_.worldMaxX) * (float)(worldMap_.width - 1) : wx;
+            float gy = (worldMap_.worldMaxY>0)? (wy / worldMap_.worldMaxY) * (float)(worldMap_.height - 1) : wy;
+            // clamp to grid
+            if (!(gx>=0 && gy>=0 && gx<=worldMap_.width-1 && gy<=worldMap_.height-1)){
+                gx = std::clamp(gx, 0.0f, (float)(worldMap_.width - 1));
+                gy = std::clamp(gy, 0.0f, (float)(worldMap_.height - 1));
+            }
+            int x0 = (int)floorf(gx); int y0 = (int)floorf(gy);
+            int x1 = std::min(x0+1, worldMap_.width-1);
+            int y1 = std::min(y0+1, worldMap_.height-1);
+            float tx = gx - (float)x0; float ty = gy - (float)y0;
+            size_t i00 = (size_t)y0*worldMap_.width + x0;
+            size_t i10 = (size_t)y0*worldMap_.width + x1;
+            size_t i01 = (size_t)y1*worldMap_.width + x0;
+            size_t i11 = (size_t)y1*worldMap_.width + x1;
+            float h00 = (i00<worldMap_.tileHeights.size())? worldMap_.tileHeights[i00] : 0.f;
+            float h10 = (i10<worldMap_.tileHeights.size())? worldMap_.tileHeights[i10] : 0.f;
+            float h01 = (i01<worldMap_.tileHeights.size())? worldMap_.tileHeights[i01] : 0.f;
+            float h11 = (i11<worldMap_.tileHeights.size())? worldMap_.tileHeights[i11] : 0.f;
+            float hx0 = h00 + (h10 - h00) * tx;
+            float hx1 = h01 + (h11 - h01) * tx;
+            return hx0 + (hx1 - hx0) * ty; // 0..globalAmplitude
+        };
+        float ground01 = sampleHeight01At(camX, camY);
+        float heightScaleZ = (worldMeshRenderer_? worldMeshRenderer_->heightScale() : 1.0f);
+        // Convertit en Z en soustrayant la base min pour être cohérent avec le shader
+        float baseMin = worldMap_.landMinHeight;
+        float groundZ = std::max(0.0f, (ground01 - baseMin)) * heightScaleZ; // unités monde
+        // Anticipe la pente en échantillonnant un point devant la caméra
+        float fxYaw = sinf(camYaw), fyYaw = -cosf(camYaw);
+        float aheadDist = std::max(1.0f, 6.0f * dynamicMinHeight); // quelques mètres devant
+        float groundAhead01 = sampleHeight01At(camX + fxYaw * aheadDist, camY + fyYaw * aheadDist);
+        float groundAheadZ = std::max(0.0f, (groundAhead01 - baseMin)) * heightScaleZ;
+        groundZ = std::max(groundZ, groundAheadZ);
+        // Limite zoom: ne jamais descendre sous 1.70 m au-dessus du sol (epsilon pour éviter clipping)
+        {
+            float eps = std::max(0.25f * dynamicMinHeight, 0.05f);
+            float minCamZ = groundZ + eps;
+            float limitZ = groundZ + dynamicMinHeight;
+            if (minCamZ > limitZ) minCamZ = limitZ; // sécurité
+            if (camHeight < limitZ) camHeight = std::max(camHeight, minCamZ);
+        }
     if (camHeight < dynamicMinHeight) camHeight = dynamicMinHeight;
     float altitudeT = (camHeight - dynamicMinHeight) / (maxHeight - dynamicMinHeight); if (altitudeT<0) altitudeT=0; if (altitudeT>1) altitudeT=1;
 
@@ -236,12 +236,7 @@ void Application::render(double /*dt*/) {
     // Inversion X pour que Q (gauche) fasse défiler la carte vers la gauche visuelle
     if (keyLeft) camX += moveSpeed;  // anciennement -
     if (keyRight)camX -= moveSpeed;  // anciennement +
-        if (keyFwd||keyBack||keyLeft||keyRight) {
-            std::fprintf(stderr,
-                "[MoveTop] F:%d B:%d L:%d R:%d pitch=%.1f yaw=%.2f cam=(%.1f,%.1f) move=%.2f\n",
-                (int)keyFwd,(int)keyBack,(int)keyLeft,(int)keyRight, camPitchDeg, camYaw, camX, camY, moveSpeed);
-            std::fflush(stderr);
-        }
+    // no verbose logs in minimal viewer
     } else {
     float yaw = camYaw;
     float fx = sinf(yaw);
@@ -253,19 +248,12 @@ void Application::render(double /*dt*/) {
         if (keyBack) dir -= glm::vec2(fx,fy);
         if (keyLeft) dir -= glm::vec2(rx,ry);
         if (keyRight)dir += glm::vec2(rx,ry);
-        if (keyFwd || keyBack || keyLeft || keyRight) {
-            std::fprintf(stderr,
-                "[MoveFPS] F:%d B:%d L:%d R:%d yaw=%.2f pitch=%.2f fx=%.3f fy=%.3f rx=%.3f ry=%.3f preDir=(%.3f,%.3f)\n",
-                (int)keyFwd,(int)keyBack,(int)keyLeft,(int)keyRight, camYaw, camPitchDeg,
-                fx, fy, rx, ry, dir.x, dir.y);
-            std::fflush(stderr);
-        }
+        // no verbose logs in minimal viewer
         if (dir.x!=0 || dir.y!=0) {
             dir = glm::normalize(dir);
             camX += dir.x * moveSpeed;
             camY += dir.y * moveSpeed;
-            std::fprintf(stderr,"[MoveFPS] finalDir=(%.3f,%.3f) cam=(%.2f,%.2f) speed=%.2f\n", dir.x, dir.y, camX, camY, moveSpeed);
-            std::fflush(stderr);
+            // no verbose logs in minimal viewer
         }
     }
 
@@ -285,8 +273,8 @@ void Application::render(double /*dt*/) {
     glm::mat4 vp;
     // Perspective always + FOV/clip dynamiques
     float aspect = (float)w / (float)h;
-    float fovBlend = (camHeight - dynamicMinHeight) / (maxHeight - dynamicMinHeight); if (fovBlend<0) fovBlend=0; if (fovBlend>1) fovBlend=1;
     float fovNear = 58.f, fovFar = 63.f;
+    float fovBlend = (camHeight - dynamicMinHeight) / (maxHeight - dynamicMinHeight); if (fovBlend<0) fovBlend=0; if (fovBlend>1) fovBlend=1;
     float fov = fovNear * (1 - fovBlend) + fovFar * fovBlend;
     float nearPlane = camHeight * 0.05f; float minNear = dynamicMinHeight * 0.02f; if (nearPlane < minNear) nearPlane = minNear; if (nearPlane < 0.0000005f) nearPlane = 0.0000005f;
     float farPlaneLow = 600.f; float farPlaneHigh = 20000.f; float farPlane = farPlaneLow * (1 - fovBlend) + farPlaneHigh * fovBlend;
@@ -298,10 +286,24 @@ void Application::render(double /*dt*/) {
     glm::mat4 view = glm::lookAt(eye, center, glm::vec3(0,0,1));
     // No Y reflection now (keep natural right-handed: +Y up). Movement logic keeps continuity.
     vp = proj * view;
-    bool showFar = (camHeight > hideMapHeight && camPitchDeg > fpsPitchSwitch+5.f);
-    if (showFar && farMapRenderer_) farMapRenderer_->render(&worldMap_, vp, totalZoom);
+    bool showFar = false;
+    // Compute view width in world units for adaptive/tess logic
+    float viewWorldWidth_now = (float)w / totalZoom;
     if (worldMeshRenderer_) {
         bool force = !showFar; // toujours visible quand la carte 2D est cachée
+    worldMeshRenderer_->setCamera(camX, camY);
+        // Auto-tie tess near/far to zoom (view width)
+        if (worldMeshRenderer_->tessEnabled()) {
+            if (autoTessRange) {
+                float nearF = std::clamp(viewWorldWidth_now * 0.15f, 10.f, 4000.f);
+                float farF  = std::clamp(viewWorldWidth_now * 1.50f, nearF + 50.f, 20000.f);
+                tessNearD = nearF; tessFarD = farF;
+                worldMeshRenderer_->setTessParams(tessNearD, tessFarD, tessMinL, tessMaxL, tessBaseStep);
+            } else {
+                // Ensure renderer has latest manual values
+                worldMeshRenderer_->setTessParams(tessNearD, tessFarD, tessMinL, tessMaxL, tessBaseStep);
+            }
+        }
         if (meshWireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         worldMeshRenderer_->render(&worldMap_, vp, totalZoom, force);
         if (meshWireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -309,9 +311,7 @@ void Application::render(double /*dt*/) {
 
     ImGui_ImplOpenGL3_NewFrame(); ImGui_ImplGlfw_NewFrame(); ImGui::NewFrame();
 
-    // Delegate HUD input + drawing to MapHUD
-    mapHUD_.handleInput(input_.get());
-    mapHUD_.draw(farMapRenderer_.get(), worldMap_);
+    // No HUD
 
     // Calque labels monde (avant fenêtre UI) : utiliser draw list background pour rester sous les fenêtres
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
@@ -348,192 +348,73 @@ void Application::render(double /*dt*/) {
         }
     }
 
-    // Affichage noms des pays (via HUD toggle)
-    if (mapHUD_.showCountryNames()) {
-        for (auto &ci : worldMap_.countryInfos) {
-            if (ci.id<=0) continue;
-            if (farMapRenderer_ && farMapRenderer_->isCountryNeutral((uint16_t)ci.id)) continue;
-            auto pOpt = projectToScreen(ci.x, ci.y, 0.0f);
-            if (!pOpt) continue;
-            ImVec2 pos = *pOpt;
-            if (pos.x < -300 || pos.y < -200 || pos.x > (float)w+300 || pos.y > (float)h+200) continue;
-            float baseSize = 22.0f; float scale = (worldMap_.countryInfos.size()>40)?0.8f:1.0f;
-            ImGuiIO& io = ImGui::GetIO(); ImFont* font = io.Fonts->Fonts.empty()? nullptr : io.Fonts->Fonts[0];
-            const char* txt = ci.name.empty()?"?":ci.name.c_str(); float sizePx = baseSize*scale;
-            ImU32 colMain = IM_COL32(255,250,240,255); ImU32 colOutline = IM_COL32(0,0,0,255);
-            ImVec2 textSize = font? font->CalcTextSizeA(sizePx, FLT_MAX, 0.f, txt) : ImVec2(0,0);
-            ImVec2 anchor = ImVec2(pos.x - textSize.x*0.5f, pos.y - textSize.y*0.5f);
-            ImGui::PushFont(font); static const ImVec2 offs[8] = { {1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1} };
-            for (auto &o : offs) dl->AddText(font, sizePx, ImVec2(anchor.x+o.x, anchor.y+o.y), colOutline, txt);
-            dl->AddText(font, sizePx, anchor, colMain, txt); ImGui::PopFont();
-        }
-    }
-
-    // Affichage noms des villes (via HUD toggle)
-    if (mapHUD_.showCityNames()) {
-        if (cfgCityEnable) {
-            float sx = (worldMap_.width>1 && worldMap_.worldMaxX>0)? worldMap_.worldMaxX / (float)(worldMap_.width -1) : 1.f;
-            float sy = (worldMap_.height>1 && worldMap_.worldMaxY>0)? worldMap_.worldMaxY / (float)(worldMap_.height-1) : 1.f;
-            struct CityDraw { ImVec2 screen; float dist; float alpha; float size; const char* name; };
-            std::vector<CityDraw> candidates; candidates.reserve(worldMap_.places.size());
-            // Distance maximale dynamique selon altitude
-            float dynamicMaxDist = cfgCityBaseMaxDist * ((1.f - altitudeT) + altitudeT * cfgCityHighAltFactor);
-            for (auto &pl : worldMap_.places) {
-                if (pl.name.empty()) continue;
-                float wx = pl.x * sx; float wy = pl.y * sy; float wz = 0.0f; // TODO: utiliser hauteur terrain future
-                // Distance au camera (sol)
-                float dx = wx - camX; float dy = wy - camY; float dist2 = dx*dx + dy*dy; float dist = sqrtf(dist2);
-                if (dist > dynamicMaxDist) continue; // hard cull
-                auto pOpt = projectToScreen(wx, wy, wz);
-                if (!pOpt) continue; ImVec2 pos = *pOpt;
-                if (pos.x < -120 || pos.y < -80 || pos.x > (float)w+120 || pos.y > (float)h+120) continue;
-                float sizePx = 14.f;
-                float alpha = 1.f;
-                float farDistActive = std::min(cfgCityFarDist, dynamicMaxDist);
-                if (cfgCityDynamicScale) {
-                    float tD = (dist - cfgCityNearDist) / (farDistActive - cfgCityNearDist); if (tD < 0.f) tD = 0.f; if (tD>1.f) tD=1.f;
-                    float inv = 1.f - tD; // proche -> 1
-                    sizePx = cfgCityMinPx + (cfgCityMaxPx - cfgCityMinPx) * inv;
-                    if (cfgCityDistanceFade) alpha *= (0.35f + 0.65f * inv); // un peu de fade distance
-                }
-                if (cfgCityAltitudeFade) {
-                    float aFade = 1.f;
-                    if (altitudeT > cfgCityAltitudeFadeStart) {
-                        float tA = (altitudeT - cfgCityAltitudeFadeStart) / (cfgCityAltitudeFadeEnd - cfgCityAltitudeFadeStart);
-                        if (tA < 0.f) tA=0.f; if (tA>1.f) tA=1.f;
-                        aFade = 1.f - tA;
-                    }
-                    alpha *= aFade;
-                }
-                if (alpha < cfgCityMinAlpha) continue;
-                candidates.push_back({ pos, dist, alpha, sizePx, pl.name.c_str() });
-            }
-            // Trier par distance (près -> loin) pour que proche recouvre
-            std::sort(candidates.begin(), candidates.end(), [](const CityDraw&a, const CityDraw&b){ return a.dist < b.dist; });
-            if ((int)candidates.size() > cfgCityMaxLabels) candidates.resize(cfgCityMaxLabels);
-            ImGuiIO& io = ImGui::GetIO(); ImFont* font = io.Fonts->Fonts.empty()? nullptr : io.Fonts->Fonts[0];
-            static const ImVec2 offsC[8] = { {1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1} };
-            for (auto &cd : candidates) {
-                float pixelOffset = 8.f;
-                const char* txt = cd.name;
-                ImVec2 textSize = font? font->CalcTextSizeA(cd.size, FLT_MAX, 0.f, txt) : ImVec2(0,0);
-                ImVec2 anchor = ImVec2(cd.screen.x - textSize.x*0.5f, cd.screen.y - textSize.y - pixelOffset);
-                unsigned a = (unsigned)std::clamp(cd.alpha*255.f, 0.f,255.f);
-                ImU32 colMain = IM_COL32(255,255,255,a);
-                ImU32 colOutline = IM_COL32(0,0,0,a);
-                ImGui::PushFont(font);
-                for (auto &o : offsC) dl->AddText(font, cd.size, ImVec2(anchor.x+o.x, anchor.y+o.y), colOutline, txt);
-                dl->AddText(font, cd.size, anchor, colMain, txt);
-                ImGui::PopFont();
-            }
-            // UI config (Labels) plus bas
-            static bool addedLabelsSection=false; // placeholder to indicate we added config below
-        }
-    }
+    // No labels
 
     ImGui::Begin("Warland");
     ImGui::Text("Map %dx%d", worldMap_.width, worldMap_.height);
-    ImGui::Text("Countries palette: %zu", worldMap_.countryColorsRGB.size());
-    ImGui::Text("ZoomFactor: %.2f Height=%.4f Pitch=%.1f", zoomFactor, camHeight, camPitchDeg);
-    ImGui::Text("Mode: %s", camPitchDeg>fpsPitchSwitch? "TopDown" : "FPS");
-    ImGui::Text("Yaw: %.2f", camYaw);
-    ImGui::Text("Human eye h (u)=%.7f speed=%.6fu/s", dynamicMinHeight, (moveSpeed/(float)fixedStep_));
-    if (ImGui::CollapsingHeader("Echelle monde")) {
-        ImGui::SliderFloat("World width (km)", &cfgWorldKmWidth, 100.f, 10000.f, "%.0f km");
-        ImGui::SliderFloat("Eye height (m)", &cfgEyeHeightMeters, 1.20f, 2.20f, "%.2f m");
-        ImGui::Text("kmPerUnit=%.6f", kmPerUnit);
+    ImGui::Text("Zoom: %.2f  Height: %.3f  Pitch: %.1f  Mode: %s", zoomFactor, camHeight, camPitchDeg, camPitchDeg>fpsPitchSwitch? "TopDown":"FPS");
+    if (ImGui::CollapsingHeader("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Checkbox("Wireframe mesh", &meshWireframe);
+        bool hshade = worldMeshRenderer_? worldMeshRenderer_->heightShading() : true;
+        if (ImGui::Checkbox("Height shading", &hshade)) { if (worldMeshRenderer_) worldMeshRenderer_->setHeightShading(hshade); }
+        ImGui::Checkbox("Debug axes monde", &showAxes);
+        static bool adaptive = false; static float radius = 200.f; static int refine = 4; static int outerStep = 4;
+        if (ImGui::Checkbox("Adaptive refinement (near camera)", &adaptive)) { if(worldMeshRenderer_) worldMeshRenderer_->setAdaptive(adaptive, radius, refine, outerStep); }
+        if (adaptive) {
+            bool r0=false, r1=false, r2=false;
+            r0 |= ImGui::SliderFloat("Refine radius (u)", &radius, 20.f, 1200.f, "%.0f");
+            r1 |= ImGui::SliderInt("Refine factor", &refine, 2, 8);
+            r2 |= ImGui::SliderInt("Outer step", &outerStep, 2, 16);
+            if ((r0||r1||r2) && worldMeshRenderer_) worldMeshRenderer_->setAdaptive(adaptive, radius, refine, outerStep);
+        }
+        if (worldMeshRenderer_) {
+            bool tess = worldMeshRenderer_->tessEnabled();
+            if (ImGui::Checkbox("GPU Tessellation", &tess)) worldMeshRenderer_->setTessEnabled(tess);
+            if (tess) {
+                ImGui::Checkbox("Auto tess near/far", &autoTessRange);
+                if (!autoTessRange) {
+                    bool c0=false,c1=false;
+                    c0|=ImGui::SliderFloat("Tess near (u)", &tessNearD, 10.f, 4000.f, "%.0f");
+                    c1|=ImGui::SliderFloat("Tess far (u)", &tessFarD, 100.f, 20000.f, "%.0f");
+                    if (c0||c1) { if (tessFarD < tessNearD+50.f) tessFarD = tessNearD+50.f; worldMeshRenderer_->setTessParams(tessNearD, tessFarD, tessMinL, tessMaxL, tessBaseStep); }
+                }
+                bool c2=false,c3=false,c4=false;
+                c2|=ImGui::SliderInt("Tess min level", &tessMinL, 1, 8);
+                c3|=ImGui::SliderInt("Tess max level", &tessMaxL, 4, 32);
+                c4|=ImGui::SliderInt("Tess base step", &tessBaseStep, 2, 32);
+                if (c2||c3||c4) worldMeshRenderer_->setTessParams(tessNearD, tessFarD, tessMinL, tessMaxL, tessBaseStep);
+                ImGui::Text("View width: %.0f u | Near: %.0f | Far: %.0f", viewWorldWidth_now, tessNearD, tessFarD);
+            }
+        }
     }
     if (ImGui::CollapsingHeader("Camera / Zoom")) {
         ImGui::SliderFloat("Zoom ease power", &zoomEasePower, 1.0f, 5.0f, "%.2f");
         ImGui::SliderFloat("Scroll min step", &scrollMinStep, 0.001f, 0.05f, "%.3f");
         ImGui::SliderFloat("Scroll max step", &scrollMaxStep, 0.05f, 0.25f, "%.2f");
-        ImGui::Text("altT=%.3f step=%.4f tLin=%.3f tEase=%.3f camH=%.5f", altitudeT, step, tHeightLin, tHeight, camHeight);
     }
-    if (ImGui::CollapsingHeader("Input Debug")) {
-        ImGui::Text("Keys W/Z:%d S:%d Q/A:%d D:%d", (int)keyFwd, (int)keyBack, (int)keyLeft, (int)keyRight);
-        ImGui::Text("Pitch: %.2f Yaw: %.2f Height: %.1f", camPitchDeg, camYaw, camHeight);
-    }
-    ImGui::Text("Cam (%.0f, %.0f)", camX, camY);
-    ImGui::Text("Places: %zu Roads: %zu", worldMap_.places.size(), worldMap_.roads.size());
-    bool showAdaptive = farMapRenderer_ ? farMapRenderer_->showAdaptive() : false; if (ImGui::Checkbox("Grille adaptative (L1)", &showAdaptive)) { if (farMapRenderer_) farMapRenderer_->setShowAdaptive(showAdaptive); }
-    bool heightShade = farMapRenderer_ ? farMapRenderer_->heightShading() : false; if (ImGui::Checkbox("Shading hauteur", &heightShade)) { if (farMapRenderer_) farMapRenderer_->setHeightShading(heightShade); }
-    bool showCountries = farMapRenderer_ ? farMapRenderer_->showCountries() : true; if (ImGui::Checkbox("Overlay pays", &showCountries)) { if (farMapRenderer_) farMapRenderer_->setShowCountries(showCountries); }
-    ImGui::Checkbox("Wireframe mesh (L2)", &meshWireframe);
-    if (farMapRenderer_) {
-        float alpha = farMapRenderer_->countryAlpha();
-        if (ImGui::SliderFloat("Opacité pays", &alpha, 0.0f, 1.0f, "%.2f")) { farMapRenderer_->setCountryAlpha(alpha); }
-        static int neutralId = 1; // défaut id 1 neutre
-        ImGui::InputInt("Country neutre ID", &neutralId);
-        if (ImGui::Button("Toggle neutre (ID actuel)") && neutralId>=0 && neutralId<256) {
-            bool cur = farMapRenderer_->isCountryNeutral((uint16_t)neutralId);
-            farMapRenderer_->setCountryNeutral((uint16_t)neutralId, !cur);
+    if (ImGui::CollapsingHeader("Terrain", ImGuiTreeNodeFlags_DefaultOpen)) {
+        bool dirty=false;
+        ImGui::Checkbox("Realtime", &gRealtimeGen);
+        ImGui::Text("Seed: %llu", (unsigned long long)gNoiseSeed);
+        if (ImGui::Button("Randomize seed")) { gNoiseSeed = (((uint64_t)rand()<<32) ^ (uint64_t)rand() ^ (uint64_t)glfwGetTime()); dirty=true; }
+        // Vertical scale for mesh
+        if (worldMeshRenderer_) {
+            float hs = worldMeshRenderer_->heightScale();
+            if (ImGui::SliderFloat("Height scale (Z)", &hs, 1.0f, 5000.0f, "%.0f", ImGuiSliderFlags_Logarithmic)) {
+                worldMeshRenderer_->setHeightScale(hs);
+            }
         }
-    }
-    // Echelle km (réutilise worldKmWidth & kmPerUnit déjà calculés plus haut)
-    float viewWorldWidth = (float)w / totalZoom;
-    float viewKmWidth = viewWorldWidth * kmPerUnit;
-    ImGui::Text("Zoom total (synthetic): %.3f (base=%.3f factor=%.3f)", totalZoom, baseZoom, zoomFactor);
-    ImGui::Text("Largeur vue: %.0f u (%.0f km)", viewWorldWidth, viewKmWidth);
-    ImGui::Checkbox("Debug axes monde", &showAxes);
-    // Debug biome sous curseur
-    if (worldMap_.width>0 && worldMap_.height>0) {
-        // Position souris -> coord monde -> coord grille (discrète)
-        float worldMouseX = camX + (float)mx / totalZoom;
-        float worldMouseY = camY + (float)my / totalZoom;
-        int gx = (int)std::floor(worldMouseX / worldMap_.worldMaxX * (worldMap_.width  - 1));
-        int gy = (int)std::floor(worldMouseY / worldMap_.worldMaxY * (worldMap_.height - 1));
-        if (worldMap_.worldMaxX <= 0 || worldMap_.worldMaxY <= 0) { gx = (int)std::floor(worldMouseX); gy = (int)std::floor(worldMouseY); }
-        if (gx>=0 && gy>=0 && gx<worldMap_.width && gy<worldMap_.height) {
-            size_t idx = (size_t)gy * worldMap_.width + gx;
-            uint16_t pal = (idx < worldMap_.paletteIndices.size()) ? worldMap_.paletteIndices[idx] : 0u;
-            int biomeId = (pal >= 2) ? (int)pal - 2 : -1; // -1 = eau
-            std::string biomeNameStr; uint32_t biomeRGB = 0x202020; bool isWater = (biomeId < 0);
-            if (!isWater) {
-                if (biomeId >= 0 && biomeId < (int)worldMap_.biomeNames.size()) {
-                    const std::string &src = worldMap_.biomeNames[biomeId];
-                    biomeNameStr = src.empty()? ("Biome "+std::to_string(biomeId)) : src;
-                    if (biomeId < (int)worldMap_.biomeColorsRGB.size()) biomeRGB = worldMap_.biomeColorsRGB[biomeId];
-                } else biomeNameStr = "Biome "+std::to_string(biomeId);
-            } else {
-            }
-            float heightVal = (idx < worldMap_.tileHeights.size()) ? worldMap_.tileHeights[idx] : 0.f;
-            if (heightVal == 0.f && !worldMap_.adaptiveCells.empty()) {
-                float wx = worldMouseX; float wy = worldMouseY;
-                for (const auto &ac : worldMap_.adaptiveCells) {
-                    if (wx >= ac.x && wx < ac.x + ac.w && wy >= ac.y && wy < ac.y + ac.h) { heightVal = ac.meanHeight; break; }
-                }
-            }
-            ImGui::Text("Palette=%u | BiomeId=%d | Name=%s | Height=%.3f", pal, biomeId, biomeNameStr.c_str(), heightVal);
-            ImGui::SameLine(); ImGui::TextColored(ImVec4(((biomeRGB>>16)&0xFF)/255.f, ((biomeRGB>>8)&0xFF)/255.f, (biomeRGB&0xFF)/255.f,1.f), "#%06X", biomeRGB);
-            if (biomeId >= 0 && idx < worldMap_.tiles.size()) {
-                uint16_t tileStored = worldMap_.tiles[idx];
-                if (tileStored != (uint16_t)biomeId) ImGui::TextColored(ImVec4(1,0.6f,0,1), "Note: tiles[%zu]=%u (centroid only) -> utilisez paletteIndices.", idx, tileStored);
-            }
-            // Country debug
-            uint16_t dbgCountryId = (idx < worldMap_.countries.size()) ? worldMap_.countries[idx] : 0;
-            if (dbgCountryId > 0) {
-                std::string cname = "Country " + std::to_string(dbgCountryId);
-                if (!worldMap_.countryInfos.empty()) {
-                    for (auto &ci : worldMap_.countryInfos) if (ci.id == dbgCountryId) { if(!ci.name.empty()) cname = ci.name; break; }
-                }
-                uint32_t cRGB = (dbgCountryId < worldMap_.countryColorsRGB.size()) ? worldMap_.countryColorsRGB[dbgCountryId] : 0x606060;
-                ImGui::Text("CountryId=%u (%s)", dbgCountryId, cname.c_str());
-                ImGui::SameLine(); ImGui::TextColored(ImVec4(((cRGB>>16)&0xFF)/255.f, ((cRGB>>8)&0xFF)/255.f, (cRGB&0xFF)/255.f,1.f), "#%06X", cRGB);
-            } else ImGui::Text("CountryId=0 (none)");
-        }
-    }
-    if (ImGui::CollapsingHeader("Labels")) {
-        ImGui::Checkbox("Cities enabled", &cfgCityEnable);
-        ImGui::Checkbox("Dynamic scale", &cfgCityDynamicScale); ImGui::SameLine(); ImGui::Checkbox("Dist fade", &cfgCityDistanceFade); ImGui::SameLine(); ImGui::Checkbox("Alt fade", &cfgCityAltitudeFade);
-        ImGui::SliderFloat("Min px", &cfgCityMinPx, 6.f, 30.f, "%.0f"); ImGui::SliderFloat("Max px", &cfgCityMaxPx, 10.f, 48.f, "%.0f");
-        ImGui::SliderFloat("Near dist", &cfgCityNearDist, 10.f, 500.f, "%.0f");
-        ImGui::SliderFloat("Far dist", &cfgCityFarDist, 200.f, 8000.f, "%.0f");
-        ImGui::SliderFloat("Base max dist", &cfgCityBaseMaxDist, 200.f, 10000.f, "%.0f");
-        ImGui::SliderFloat("HighAlt factor", &cfgCityHighAltFactor, 0.05f, 1.0f, "%.2f");
-        ImGui::SliderFloat("Alt fade start", &cfgCityAltitudeFadeStart, 0.0f, 0.95f, "%.2f");
-        ImGui::SliderFloat("Alt fade end", &cfgCityAltitudeFadeEnd, 0.05f, 1.0f, "%.2f");
-        ImGui::SliderInt("Max labels", &cfgCityMaxLabels, 50, 2000);
-        ImGui::SliderFloat("Min alpha", &cfgCityMinAlpha, 0.0f, 0.3f, "%.2f");
+        dirty |= ImGui::SliderInt("Octaves", &gNoiseCfg.octaves, 1, 9);
+        dirty |= ImGui::SliderFloat("Base freq", &gNoiseCfg.baseFrequency, 0.00005f, 0.01f, "%.5f", ImGuiSliderFlags_Logarithmic);
+        dirty |= ImGui::SliderFloat("Lacunarity", &gNoiseCfg.lacunarity, 1.5f, 3.0f, "%.2f");
+        dirty |= ImGui::SliderFloat("Gain", &gNoiseCfg.gain, 0.2f, 0.9f, "%.2f");
+        dirty |= ImGui::SliderFloat("Amplitude", &gNoiseCfg.globalAmplitude, 0.01f, 1.0f, "%.2f");
+        dirty |= ImGui::SliderFloat("Sea level", &gNoiseCfg.seaLevel, 0.0f, 1.0f, "%.2f");
+        dirty |= ImGui::SliderInt("Blur passes", &gNoiseCfg.blurPasses, 0, 6);
+        dirty |= ImGui::SliderFloat("Slope X", &gNoiseCfg.slopeX, -0.5f, 0.5f, "%.2f");
+        dirty |= ImGui::SliderFloat("Slope Y", &gNoiseCfg.slopeY, -0.5f, 0.5f, "%.2f");
+        if (dirty && gRealtimeGen) { TerrainNoise::Generate(worldMap_, gNoiseSeed, gNoiseCfg); if (worldMeshRenderer_) worldMeshRenderer_->rebuild(&worldMap_); }
+        if (!gRealtimeGen && ImGui::Button("Generate")) { TerrainNoise::Generate(worldMap_, gNoiseSeed, gNoiseCfg); if (worldMeshRenderer_) worldMeshRenderer_->rebuild(&worldMap_); }
     }
     ImGui::End();
     ImGui::Render(); ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -550,7 +431,6 @@ void Application::run() {
 }
 
 void Application::shutdown() {
-    if (farMapRenderer_) { farMapRenderer_->shutdown(); farMapRenderer_.reset(); }
     if (worldMeshRenderer_) { worldMeshRenderer_->shutdown(); worldMeshRenderer_.reset(); }
     ShutdownImGui();
     if (input_) input_.reset();

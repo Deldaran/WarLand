@@ -405,6 +405,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\warland\src\Engine\Rendering\World\SimpleWorldMeshRenderer.cpp" />
     <ClCompile Include="C:\warland\src\Engine\Simulation\Scheduler.cpp" />
     <ClCompile Include="C:\warland\src\Engine\WorldGen\BiomeGenerator.cpp" />
+    <ClCompile Include="C:\warland\src\Engine\WorldGen\TerrainNoise.cpp" />
     <ClCompile Include="C:\warland\src\Platform\Input.cpp" />
     <ClCompile Include="C:\warland\src\Platform\Window.cpp" />
     <ClCompile Include="C:\warland\src\ThirdParty\stb_image.cpp" />
@@ -494,6 +495,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\warland\src\Engine\UI\Menus.h" />
     <ClInclude Include="C:\warland\src\Engine\UI\Overlays.h" />
     <ClInclude Include="C:\warland\src\Engine\WorldGen\BiomeGenerator.h" />
+    <ClInclude Include="C:\warland\src\Engine\WorldGen\TerrainNoise.h" />
     <ClInclude Include="C:\warland\src\Platform\FileSystem.h" />
     <ClInclude Include="C:\warland\src\Platform\Input.h" />
     <ClInclude Include="C:\warland\src\Platform\Window.h" />

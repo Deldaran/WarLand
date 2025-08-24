@@ -11,9 +11,7 @@
 #include "../Platform/Input.h"
 #include "../Engine/Simulation/Scheduler.h"
 #include "../Engine/Rendering/GL/TileMap.h"
-#include "../Engine/Rendering/World/FarMapRenderer.h"
 #include "../Engine/Rendering/World/SimpleWorldMeshRenderer.h"
-#include "HUD.h"
 
 struct GLFWwindow;
 
@@ -40,11 +38,9 @@ private:
     std::unique_ptr<Input> input_;
     std::unique_ptr<Scheduler> scheduler_;
 
-    // Far map world data & renderer
+    // Minimal world data & renderer (no L1)
     TileMap worldMap_;
-    std::unique_ptr<FarMapRenderer> farMapRenderer_;
-    std::unique_ptr<SimpleWorldMeshRenderer> worldMeshRenderer_; // L2 (zoom proche)
-    MapHUD mapHUD_; // HUD manager
+    std::unique_ptr<SimpleWorldMeshRenderer> worldMeshRenderer_;
 
     bool vsync_ = true;
 };

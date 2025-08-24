@@ -37,6 +37,9 @@
     <ClCompile Include="C:\warland\src\Engine\WorldGen\BiomeGenerator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\warland\src\Engine\WorldGen\TerrainNoise.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\warland\src\Platform\Input.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -304,6 +307,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\warland\src\Engine\WorldGen\BiomeGenerator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\warland\src\Engine\WorldGen\TerrainNoise.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\warland\src\Platform\FileSystem.h">
