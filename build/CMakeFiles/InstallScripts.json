@@ -1,8 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"C:/warland/build/cmake_install.cmake",
-		"C:/warland/build/tests/cmake_install.cmake"
-	],
-	"Parallel" : false
-}
