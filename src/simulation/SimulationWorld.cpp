@@ -78,6 +78,20 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
     m_neighbors.assign(n, {});
     for (int p = 0; p < n; ++p) m_neighbors[p] = provinces.neighbors(p);
 
+    // Diplomatie : opinions inter-civilisations initialisees autour de 0.
+    m_civCount = provinces.civCount();
+    m_opinion.assign(m_civCount * m_civCount, 0.0f);
+    m_warState.assign(m_civCount * m_civCount, 0);
+    m_civPopulation.assign(m_civCount, 0.0);
+    std::uniform_real_distribution<float> initOp(-20.0f, 20.0f);
+    for (int a = 0; a < m_civCount; ++a) {
+        for (int b = a + 1; b < m_civCount; ++b) {
+            float v = initOp(m_rng);
+            m_opinion[a * m_civCount + b] = v;
+            m_opinion[b * m_civCount + a] = v;
+        }
+    }
+
     for (int p = 0; p < n; ++p) {
         entt::entity e = m_registry.create();
         m_byProvince[p] = e;
@@ -182,8 +196,44 @@ void SimulationWorld::tick(double days, int year) {
     }
 
     exchangeBetweenProvinces(days);
+    tickDiplomacy(days, year);
     spawnEvents(days, year);
     recomputeAggregates();
+}
+
+void SimulationWorld::tickDiplomacy(double days, int year) {
+    if (m_civCount < 2) return;
+
+    std::normal_distribution<double> noise(0.0, 1.0);
+    std::uniform_real_distribution<double> u01(0.0, 1.0);
+
+    for (int a = 0; a < m_civCount; ++a) {
+        for (int b = a + 1; b < m_civCount; ++b) {
+            int idx = a * m_civCount + b;
+            float v = m_opinion[idx];
+
+            // Marche aleatoire + leger retour vers la neutralite.
+            double d = noise(m_rng) * 0.4 * days - 0.01 * v * days;
+            // Choc diplomatique occasionnel (incident ou traite).
+            if (u01(m_rng) < 0.0008 * days) d += (u01(m_rng) < 0.5 ? -30.0 : 30.0);
+
+            v = std::clamp(v + static_cast<float>(d), -100.0f, 100.0f);
+            m_opinion[idx] = v;
+            m_opinion[b * m_civCount + a] = v;
+
+            // Transitions guerre / paix.
+            bool warNow = v <= -60.0f;
+            bool warBefore = m_warState[idx] != 0;
+            if (warNow != warBefore) {
+                m_warState[idx] = m_warState[b * m_civCount + a] = warNow ? 1 : 0;
+                logEvent(year,
+                    (warNow ? "Guerre declaree : civ " : "Paix signee : civ ")
+                        + std::to_string(a) + (warNow ? " vs civ " : " et civ ")
+                        + std::to_string(b),
+                    warNow ? 2 : 0);
+            }
+        }
+    }
 }
 
 void SimulationWorld::exchangeBetweenProvinces(double days) {
@@ -318,6 +368,7 @@ void SimulationWorld::recomputeAggregates() {
     double maxPop = 1.0;
     int inhabited = 0;
     int healthy = 0;
+    std::fill(m_civPopulation.begin(), m_civPopulation.end(), 0.0);
 
     auto view = m_registry.view<CProvince, CPopulation>();
     for (auto e : view) {
@@ -328,6 +379,8 @@ void SimulationWorld::recomputeAggregates() {
         maxPop = std::max(maxPop, pop.count);
         ++inhabited;
         if (pop.lastFoodBalance >= 0.0) ++healthy;
+        if (prov.civ >= 0 && prov.civ < static_cast<int>(m_civPopulation.size()))
+            m_civPopulation[prov.civ] += pop.count;
     }
 
     m_totalPopulation = total;

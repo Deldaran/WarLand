@@ -42,6 +42,13 @@ glm::vec3 hsv2rgb(float h, float s, float v) {
     }
 }
 
+// Cle d'arete non orientee (pour dedupliquer les segments de frontiere).
+uint64_t edgeKey(int a, int b) {
+    uint32_t lo = a < b ? a : b;
+    uint32_t hi = a < b ? b : a;
+    return (static_cast<uint64_t>(lo) << 32) | hi;
+}
+
 // Index de l'element le plus proche (angle min = produit scalaire max).
 int nearestSeed(const glm::vec3& dir, const std::vector<glm::vec3>& seeds) {
     int best = 0;
@@ -60,6 +67,8 @@ ProvinceMap::ProvinceMap(const PlanetMesh& planet, const Params& params) {
 }
 
 ProvinceMap::~ProvinceMap() {
+    if (m_borderVbo) glDeleteBuffers(1, &m_borderVbo);
+    if (m_borderVao) glDeleteVertexArrays(1, &m_borderVao);
     if (m_ebo) glDeleteBuffers(1, &m_ebo);
     if (m_vbo) glDeleteBuffers(1, &m_vbo);
     if (m_vao) glDeleteVertexArrays(1, &m_vao);
@@ -137,6 +146,39 @@ void ProvinceMap::build(const PlanetMesh& planet, const Params& params) {
     m_neighbors.resize(params.provinces);
     for (int p = 0; p < params.provinces; ++p) {
         m_neighbors[p].assign(adj[p].begin(), adj[p].end());
+    }
+
+    // Frontieres : segments le long des aretes ou deux civilisations se touchent.
+    {
+        std::unordered_set<uint64_t> seen;
+        std::vector<float> bverts;
+        auto consider = [&](int a, int b) {
+            int ca = m_provinceCiv[m_vertexProvince[a]];
+            int cb = m_provinceCiv[m_vertexProvince[b]];
+            if (ca == cb) return;
+            uint64_t key = edgeKey(a, b);
+            if (!seen.insert(key).second) return;
+            glm::vec3 pa = m_overlayPositions[a] * 1.0015f;
+            glm::vec3 pb = m_overlayPositions[b] * 1.0015f;
+            bverts.insert(bverts.end(), {pa.x, pa.y, pa.z, pb.x, pb.y, pb.z});
+        };
+        for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+            int v0 = indices[i], v1 = indices[i + 1], v2 = indices[i + 2];
+            consider(v0, v1);
+            consider(v1, v2);
+            consider(v2, v0);
+        }
+        m_borderVertexCount = static_cast<int>(bverts.size() / 3);
+
+        glGenVertexArrays(1, &m_borderVao);
+        glGenBuffers(1, &m_borderVbo);
+        glBindVertexArray(m_borderVao);
+        glBindBuffer(GL_ARRAY_BUFFER, m_borderVbo);
+        glBufferData(GL_ARRAY_BUFFER, bverts.size() * sizeof(float),
+                     bverts.data(), GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
     }
 
     m_indexCount = static_cast<int>(indices.size());
@@ -231,6 +273,13 @@ int ProvinceMap::provinceCiv(int province) const {
 void ProvinceMap::draw() const {
     glBindVertexArray(m_vao);
     glDrawElements(GL_TRIANGLES, m_indexCount, GL_UNSIGNED_INT, nullptr);
+    glBindVertexArray(0);
+}
+
+void ProvinceMap::drawBorders() const {
+    if (m_borderVertexCount == 0) return;
+    glBindVertexArray(m_borderVao);
+    glDrawArrays(GL_LINES, 0, m_borderVertexCount);
     glBindVertexArray(0);
 }
 

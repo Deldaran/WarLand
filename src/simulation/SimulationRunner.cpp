@@ -19,6 +19,9 @@ SimulationRunner::Snapshot SimulationRunner::buildSnapshot(int year) const {
     snap.provinces = m_world.allStates();
     const auto& ev = m_world.events();
     snap.events.assign(ev.begin(), ev.end());
+    snap.civCount = m_world.civCount();
+    snap.opinion = m_world.opinionMatrix();
+    snap.civPopulation = m_world.civPopulations();
     return snap;
 }
 

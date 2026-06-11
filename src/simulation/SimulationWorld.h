@@ -56,6 +56,11 @@ public:
     double maxProvincePopulation() const { return m_maxProvincePopulation; }
     double stability() const { return m_stability; } // 0..1 (fraction sans famine)
 
+    // Diplomatie : opinion entre civilisations (-100 guerre .. +100 alliance).
+    int civCount() const { return m_civCount; }
+    const std::vector<float>& opinionMatrix() const { return m_opinion; }
+    const std::vector<double>& civPopulations() const { return m_civPopulation; }
+
     const std::deque<EventRecord>& events() const { return m_events; }
 
     // Sauvegarde / chargement de l'etat dynamique (JSON). La topologie des
@@ -77,11 +82,17 @@ private:
     double m_maxProvincePopulation = 1.0;
     double m_stability = 1.0;
 
+    int m_civCount = 0;
+    std::vector<float> m_opinion;        // matrice civ x civ (a plat)
+    std::vector<double> m_civPopulation; // population totale par civ
+    std::vector<char> m_warState;        // etat de guerre par paire (a plat)
+
     std::mt19937 m_rng{12345u};
     std::deque<EventRecord> m_events;
 
     void recomputeAggregates();
     void exchangeBetweenProvinces(double days); // commerce + migration
+    void tickDiplomacy(double days, int year);
     void spawnEvents(double days, int year);
     void logEvent(int year, std::string text, int severity);
 };

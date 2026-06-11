@@ -261,8 +261,19 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **60 FPS garantis** même si la simulation devient lourde ; l'accélération du temps (x10) ne bloque jamais l'affichage
 - Pas de data race : le rendu ne touche jamais le `registry` ECS, il lit uniquement le snapshot
 
-## Prochaine étape — Phase 6
+### Phase 6 — Sauvegarde / Chargement ✅
+- État vivant sérialisé en **JSON** (nlohmann/json) : population, stocks, afflictions, événements, année — [SimulationWorld::saveToFile](src/simulation/SimulationWorld.cpp)
+- Rejoué sur les entités existantes (topologie déterministe via la seed)
+- I/O exécutées sur le **thread de simulation** (`requestSave`/`requestLoad`), boutons **Sauver / Charger** dans le HUD
 
-- **Sauvegarde/chargement** JSON de l'état du monde (nlohmann/json déjà intégré).
-- **Diplomatie** entre civilisations (relations, traités, tensions) + **frontières nettes**.
-- **Couche Économie** : visualiser les flux commerciaux entre provinces.
+### Phase 7 — Diplomatie & frontières ✅
+- **Frontières nettes** : lignes sombres rendues sur les arêtes du maillage où deux civilisations se touchent — [ProvinceMap::drawBorders](src/renderer/overlay/ProvinceMap.h)
+- **Diplomatie** : matrice d'opinion civ × civ (-100 guerre → +100 alliance), marche aléatoire + chocs diplomatiques + retour à la neutralité — [SimulationWorld::tickDiplomacy](src/simulation/SimulationWorld.cpp)
+- **Guerres/paix** déclenchées aux seuils, loguées dans la timeline
+- Panneau **Diplomatie** : population par civilisation + matrice de relations colorée (vert = allié, rouge = guerre)
+
+## Prochaine étape — Phase 8
+
+- **Conséquences des guerres** : la diplomatie influence le commerce (embargo entre ennemis) et déclenche des conflits territoriaux.
+- **Arbre technologique** et progression d'**ères** (âge de pierre → spatial).
+- **Langues & cultures**, espionnage, doctrines — cf. [GamePlan.md](GamePlan.md).

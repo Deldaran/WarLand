@@ -25,6 +25,9 @@ public:
         double maxProvincePopulation = 1.0;
         std::vector<SimulationWorld::ProvinceState> provinces;
         std::vector<SimulationWorld::EventRecord> events;
+        int civCount = 0;
+        std::vector<float> opinion;          // matrice civ x civ (a plat)
+        std::vector<double> civPopulation;   // population par civ
     };
 
     ~SimulationRunner();

@@ -29,6 +29,7 @@ public:
     ProvinceMap& operator=(const ProvinceMap&) = delete;
 
     void draw() const;
+    void drawBorders() const; // lignes de frontiere entre civilisations
 
     int provinceCount() const { return m_provinceCount; }
     int civCount() const { return m_civCount; }
@@ -62,6 +63,10 @@ private:
     unsigned int m_vbo = 0;
     unsigned int m_ebo = 0;
     int m_indexCount = 0;
+
+    unsigned int m_borderVao = 0;
+    unsigned int m_borderVbo = 0;
+    int m_borderVertexCount = 0;
     int m_provinceCount = 0;
     int m_civCount = 0;
 

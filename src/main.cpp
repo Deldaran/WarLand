@@ -196,6 +196,47 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
     ImGui::SetNextWindowPos(ImVec2(vp->WorkPos.x, vp->WorkPos.y + vp->WorkSize.y - 80),
                             ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(vp->WorkSize.x, 80), ImGuiCond_FirstUseEver);
+    // --- Panneau Diplomatie ---
+    ImGui::SetNextWindowPos(ImVec2(vp->WorkPos.x + vp->WorkSize.x - 260,
+                                   vp->WorkPos.y + 370), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(260, 300), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Diplomatie");
+    {
+        int c = snap.civCount;
+        if (c <= 0) {
+            ImGui::TextDisabled("(en cours d'initialisation)");
+        } else {
+            ImGui::TextDisabled("Population par civilisation");
+            for (int i = 0; i < c && i < static_cast<int>(snap.civPopulation.size()); ++i) {
+                glm::vec3 col = provinces.civColor(i);
+                ImGui::ColorButton(("##c" + std::to_string(i)).c_str(),
+                    ImVec4(col.r, col.g, col.b, 1.0f),
+                    ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoPicker,
+                    ImVec2(14, 14));
+                ImGui::SameLine();
+                ImGui::Text("Civ %d : %s", i, formatNumber(snap.civPopulation[i]).c_str());
+            }
+            ImGui::Separator();
+            ImGui::TextDisabled("Relations (vert=allie, rouge=guerre)");
+            // Matrice d'opinions.
+            for (int a = 0; a < c; ++a) {
+                for (int b = 0; b < c; ++b) {
+                    float o = (a == b) ? 100.0f
+                            : snap.opinion[a * c + b];
+                    ImVec4 cell = a == b ? ImVec4(0.25f, 0.25f, 0.30f, 1)
+                        : o <= -60.0f ? ImVec4(0.85f, 0.20f, 0.18f, 1)
+                        : o >= 60.0f  ? ImVec4(0.25f, 0.75f, 0.30f, 1)
+                        : ImVec4(0.35f + o / 600.0f, 0.35f, 0.35f - o / 600.0f, 1);
+                    ImGui::ColorButton(("##o" + std::to_string(a) + "_" + std::to_string(b)).c_str(),
+                        cell, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoPicker,
+                        ImVec2(20, 20));
+                    if (b < c - 1) ImGui::SameLine();
+                }
+            }
+        }
+    }
+    ImGui::End();
+
     ImGui::Begin("Timeline des evenements");
     {
         const auto& evs = snap.events;
@@ -220,7 +261,7 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
 
 int main() {
     try {
-        wl::Window window(1600, 900, "WarLand - Phase 5");
+        wl::Window window(1600, 900, "WarLand - Phase 7");
         glfwSetScrollCallback(window.handle(), scrollCallback);
 
         // --- Setup ImGui ---
@@ -235,12 +276,15 @@ int main() {
         wl::Shader planetShader;
         wl::Shader atmoShader;
         wl::Shader overlayShader;
+        wl::Shader borderShader;
         if (!planetShader.loadFromFiles(assets + "/shaders/planet.vert",
                                         assets + "/shaders/planet.frag") ||
             !atmoShader.loadFromFiles(assets + "/shaders/atmosphere.vert",
                                       assets + "/shaders/atmosphere.frag") ||
             !overlayShader.loadFromFiles(assets + "/shaders/overlay.vert",
-                                         assets + "/shaders/overlay.frag")) {
+                                         assets + "/shaders/overlay.frag") ||
+            !borderShader.loadFromFiles(assets + "/shaders/border.vert",
+                                        assets + "/shaders/border.frag")) {
             std::cerr << "[WarLand] Echec du chargement des shaders\n";
             return 1;
         }
@@ -451,6 +495,16 @@ int main() {
                 glDisable(GL_BLEND);
                 glDepthMask(GL_TRUE);
                 glDisable(GL_CULL_FACE);
+
+                // Frontieres nettes entre civilisations (couche politique).
+                if (overlayMode == OverlayMode::Political) {
+                    glLineWidth(1.5f);
+                    borderShader.bind();
+                    borderShader.setMat4("uModel", planetModel);
+                    borderShader.setMat4("uViewProj", viewProj);
+                    borderShader.setVec3("uColor", glm::vec3(0.02f, 0.02f, 0.04f));
+                    provinces.drawBorders();
+                }
             }
 
             // 3. L'atmosphere (halo additif autour du limbe)
