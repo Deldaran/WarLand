@@ -48,7 +48,9 @@ public:
     void tick(double days, int year);
 
     ProvinceState state(int provinceId) const;
+    std::vector<ProvinceState> allStates() const; // pour publier un snapshot
     double population(int provinceId) const;
+    int provinceCount() const { return static_cast<int>(m_byProvince.size()); }
 
     double totalPopulation() const { return m_totalPopulation; }
     double maxProvincePopulation() const { return m_maxProvincePopulation; }

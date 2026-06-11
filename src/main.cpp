@@ -18,6 +18,7 @@
 #include "renderer/planet/PlanetMesh.h"
 #include "renderer/overlay/ProvinceMap.h"
 #include "simulation/SimulationWorld.h"
+#include "simulation/SimulationRunner.h"
 
 #include <iostream>
 #include <string>
@@ -49,26 +50,6 @@ struct LayerState {
     bool conflits = false;
 };
 
-// Horloge de simulation : pilote la vitesse du temps (barre x1/x5/x10) et
-// renvoie le nombre de jours in-game ecoules a chaque frame.
-struct SimClock {
-    bool paused = false;
-    int speed = 1;            // x1, x2, x5, x10
-    double accumulated = 0.0; // jours dans l'annee en cours
-    int year = -3000;         // age de pierre
-
-    double advance(double dt) {
-        if (paused) return 0.0;
-        double days = dt * speed * 10.0; // 10 jours / s a x1
-        accumulated += days;
-        while (accumulated >= 365.0) {
-            accumulated -= 365.0;
-            ++year;
-        }
-        return days;
-    }
-};
-
 // Formatage compact des grands nombres (population, stocks).
 std::string formatNumber(double v) {
     char buf[32];
@@ -91,9 +72,9 @@ glm::vec3 heatColor(float t) {
     return glm::mix(c2, c3, (t - 0.66f) / 0.34f);
 }
 
-void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
+void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& snap,
+            LayerState& layers, const wl::Camera& cam,
             const wl::PlanetMesh& planet, const wl::ProvinceMap& provinces,
-            const wl::SimulationWorld& sim,
             int selectedProvince, int selectedCiv, double fps) {
     ImGuiViewport* vp = ImGui::GetMainViewport();
 
@@ -104,19 +85,19 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
     {
-        ImGui::Text("An %d", clock.year);
+        ImGui::Text("An %d", snap.year);
         ImGui::SameLine(0, 30);
-        if (ImGui::Button(clock.paused ? "Play" : "Pause")) clock.paused = !clock.paused;
+        if (ImGui::Button(runner.paused() ? "Play" : "Pause")) runner.setPaused(!runner.paused());
         ImGui::SameLine();
         for (int s : {1, 2, 5, 10}) {
             ImGui::SameLine();
-            bool active = (clock.speed == s);
+            bool active = (runner.speed() == s);
             if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.3f, 1.0f));
-            if (ImGui::Button((std::string("x") + std::to_string(s)).c_str())) clock.speed = s;
+            if (ImGui::Button((std::string("x") + std::to_string(s)).c_str())) runner.setSpeed(s);
             if (active) ImGui::PopStyleColor();
         }
         ImGui::SameLine(0, 40);
-        double stab = sim.stability() * 100.0;
+        double stab = snap.stability * 100.0;
         ImVec4 stabCol = stab > 75 ? ImVec4(0.4f, 0.9f, 0.4f, 1)
                        : stab > 50 ? ImVec4(0.9f, 0.8f, 0.3f, 1)
                                    : ImVec4(0.95f, 0.4f, 0.3f, 1);
@@ -124,7 +105,7 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
         ImGui::SameLine();
         ImGui::TextColored(stabCol, "%.0f%%", stab);
         ImGui::SameLine(0, 40);
-        ImGui::Text("Population: %s", formatNumber(sim.totalPopulation()).c_str());
+        ImGui::Text("Population: %s", formatNumber(snap.totalPopulation).c_str());
         ImGui::SameLine(0, 40);
         ImGui::Text("%.0f FPS", fps);
     }
@@ -163,7 +144,9 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
                 ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoPicker,
                 ImVec2(16, 16));
 
-            wl::SimulationWorld::ProvinceState st = sim.state(selectedProvince);
+            wl::SimulationWorld::ProvinceState st;
+            if (selectedProvince < static_cast<int>(snap.provinces.size()))
+                st = snap.provinces[selectedProvince];
             if (st.valid) {
                 ImGui::Spacing();
                 ImGui::Text("Biome : %s", wl::SimulationWorld::biomeName(st.biome));
@@ -210,7 +193,7 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
     ImGui::SetNextWindowSize(ImVec2(vp->WorkSize.x, 80), ImGuiCond_FirstUseEver);
     ImGui::Begin("Timeline des evenements");
     {
-        const auto& evs = sim.events();
+        const auto& evs = snap.events;
         if (evs.empty()) {
             ImGui::TextDisabled("Aucun evenement - accelere le temps (x10) et observe...");
         } else {
@@ -232,7 +215,7 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
 
 int main() {
     try {
-        wl::Window window(1600, 900, "WarLand - Phase 3");
+        wl::Window window(1600, 900, "WarLand - Phase 5");
         glfwSetScrollCallback(window.handle(), scrollCallback);
 
         // --- Setup ImGui ---
@@ -279,12 +262,11 @@ int main() {
         provParams.civs = 7;
         wl::ProvinceMap provinces(planet, provParams);
 
-        // Simulation : une entite ECS par province (population, ressources...).
-        wl::SimulationWorld sim;
-        sim.init(provinces, planetParams.seaLevel);
+        // Simulation sur son propre thread (decouplee du rendu).
+        wl::SimulationRunner runner;
+        runner.start(provinces, planetParams.seaLevel);
 
         wl::Camera camera(window.aspectRatio());
-        SimClock clock;
         LayerState layers;
 
         // Gestion de la couche overlay (politique ou heatmap de population).
@@ -356,9 +338,8 @@ int main() {
             }
             g_scrollDelta = 0.0;
 
-            // --- Avancee de la simulation ---
-            double simDays = clock.advance(dt);
-            sim.tick(simDays, clock.year);
+            // --- Lecture de l'etat simule (snapshot publie par le thread sim) ---
+            wl::SimulationRunner::Snapshot snap = runner.snapshot();
 
             // --- Coloration de l'overlay selon la couche active ---
             OverlayMode desired = layers.population ? OverlayMode::Population
@@ -367,12 +348,14 @@ int main() {
             if (desired == OverlayMode::Political && overlayMode != OverlayMode::Political) {
                 provinces.applyPoliticalColors();
             }
-            if (desired == OverlayMode::Population) {
+            if (desired == OverlayMode::Population && !snap.provinces.empty()) {
                 heatTimer += dt;
                 if (overlayMode != OverlayMode::Population || heatTimer >= 0.35) {
-                    double maxP = sim.maxProvincePopulation();
-                    for (int p = 0; p < provinces.provinceCount(); ++p) {
-                        auto st = sim.state(p);
+                    double maxP = snap.maxProvincePopulation;
+                    int count = std::min(provinces.provinceCount(),
+                                         static_cast<int>(snap.provinces.size()));
+                    for (int p = 0; p < count; ++p) {
+                        const auto& st = snap.provinces[p];
                         if (st.ocean) {
                             heatColors[p] = glm::vec3(0.04f, 0.07f, 0.14f);
                         } else {
@@ -488,13 +471,15 @@ int main() {
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
-            drawUI(clock, layers, camera, planet, provinces, sim,
+            drawUI(runner, snap, layers, camera, planet, provinces,
                    selectedProvince, selectedCiv, fps);
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
             window.swapBuffers();
         }
+
+        runner.stop(); // arret propre du thread de simulation
 
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();

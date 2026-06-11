@@ -359,6 +359,14 @@ SimulationWorld::ProvinceState SimulationWorld::state(int provinceId) const {
     return s;
 }
 
+std::vector<SimulationWorld::ProvinceState> SimulationWorld::allStates() const {
+    std::vector<ProvinceState> out(m_byProvince.size());
+    for (size_t i = 0; i < m_byProvince.size(); ++i) {
+        out[i] = state(static_cast<int>(i));
+    }
+    return out;
+}
+
 double SimulationWorld::population(int provinceId) const {
     if (provinceId < 0 || provinceId >= static_cast<int>(m_byProvince.size())) return 0.0;
     entt::entity e = m_byProvince[provinceId];

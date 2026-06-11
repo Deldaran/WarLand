@@ -242,7 +242,7 @@ Contrôles : **drag souris** = orbite caméra · **molette** = zoom (jusqu'au so
 - **Heatmap de population** : couche **Population** recolorant le globe (bleu = peu peuplé → rouge = dense), rafraîchie en continu
 - Panneau **Contexte** : biome, population, état alimentaire et stocks **live** de la province sélectionnée ; barre supérieure : **stabilité** et **population mondiale** réelles
 
-La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/SimulationWorld.cpp) ne touche jamais à OpenGL) — prête pour un passage multi-thread ultérieur.
+La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/SimulationWorld.cpp) ne touche jamais à OpenGL).
 
 ### Phase 3b — Événements & chocs ✅
 - **Sécheresse** (production de nourriture à 35 %, 1–3 ans), **épidémie** (mortalité continue), **récolte exceptionnelle** (bonus) — composant `CAffliction`, tirage ~Poisson
@@ -255,8 +255,14 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **Migration** : les populations affamées **fuient** vers les voisins en surplus, réparties au prorata de leur situation alimentaire
 - Échanges calculés en **deltas** puis appliqués (pas de dépendance à l'ordre d'itération) — [SimulationWorld::exchangeBetweenProvinces](src/simulation/SimulationWorld.cpp)
 
-## Prochaine étape — Phase 5
+### Phase 5 — Simulation multi-thread ✅
+- La simulation tourne sur **son propre thread** ([SimulationRunner](src/simulation/SimulationRunner.h)), totalement séparée du rendu
+- Le thread sim avance le temps en **temps réel** (vitesse/pause via atomiques) et publie un **Snapshot** sous mutex ; le rendu en lit une copie à chaque frame
+- **60 FPS garantis** même si la simulation devient lourde ; l'accélération du temps (x10) ne bloque jamais l'affichage
+- Pas de data race : le rendu ne touche jamais le `registry` ECS, il lit uniquement le snapshot
 
-- **Multi-thread** : déplacer la simulation sur son propre thread (double buffer) comme prévu dans l'architecture.
-- **Diplomatie & frontières nettes** entre civilisations, couche Économie.
+## Prochaine étape — Phase 6
+
 - **Sauvegarde/chargement** JSON de l'état du monde (nlohmann/json déjà intégré).
+- **Diplomatie** entre civilisations (relations, traités, tensions) + **frontières nettes**.
+- **Couche Économie** : visualiser les flux commerciaux entre provinces.
