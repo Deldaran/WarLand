@@ -60,6 +60,10 @@ public:
     int civCount() const { return m_civCount; }
     const std::vector<float>& opinionMatrix() const { return m_opinion; }
     const std::vector<double>& civPopulations() const { return m_civPopulation; }
+    const std::vector<double>& civTech() const { return m_civTech; }
+
+    static const char* eraName(int era);
+    static int eraForTech(double tech); // indice d'ere a partir des points de techno
 
     const std::deque<EventRecord>& events() const { return m_events; }
 
@@ -85,7 +89,13 @@ private:
     int m_civCount = 0;
     std::vector<float> m_opinion;        // matrice civ x civ (a plat)
     std::vector<double> m_civPopulation; // population totale par civ
+    std::vector<double> m_civTech;       // points de technologie par civ
     std::vector<char> m_warState;        // etat de guerre par paire (a plat)
+
+    bool atWar(int civA, int civB) const {
+        if (civA < 0 || civB < 0 || civA >= m_civCount || civB >= m_civCount) return false;
+        return m_warState[civA * m_civCount + civB] != 0;
+    }
 
     std::mt19937 m_rng{12345u};
     std::deque<EventRecord> m_events;
@@ -93,6 +103,7 @@ private:
     void recomputeAggregates();
     void exchangeBetweenProvinces(double days); // commerce + migration
     void tickDiplomacy(double days, int year);
+    void tickTech(double days);
     void spawnEvents(double days, int year);
     void logEvent(int year, std::string text, int severity);
 };

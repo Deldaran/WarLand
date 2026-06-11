@@ -22,6 +22,7 @@ SimulationRunner::Snapshot SimulationRunner::buildSnapshot(int year) const {
     snap.civCount = m_world.civCount();
     snap.opinion = m_world.opinionMatrix();
     snap.civPopulation = m_world.civPopulations();
+    snap.civTech = m_world.civTech();
     return snap;
 }
 

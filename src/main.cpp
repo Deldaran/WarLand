@@ -86,6 +86,14 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
     {
         ImGui::Text("An %d", snap.year);
+        ImGui::SameLine(0, 20);
+        {
+            // Ere globale = celle de la civilisation la plus avancee.
+            int era = 0;
+            for (double t : snap.civTech) era = std::max(era, wl::SimulationWorld::eraForTech(t));
+            ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1), "%s",
+                               wl::SimulationWorld::eraName(era));
+        }
         ImGui::SameLine(0, 30);
         if (ImGui::Button(runner.paused() ? "Play" : "Pause")) runner.setPaused(!runner.paused());
         ImGui::SameLine();
@@ -214,7 +222,11 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
                     ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoPicker,
                     ImVec2(14, 14));
                 ImGui::SameLine();
-                ImGui::Text("Civ %d : %s", i, formatNumber(snap.civPopulation[i]).c_str());
+                int era = (i < static_cast<int>(snap.civTech.size()))
+                    ? wl::SimulationWorld::eraForTech(snap.civTech[i]) : 0;
+                ImGui::Text("Civ %d : %s  [%s]", i,
+                    formatNumber(snap.civPopulation[i]).c_str(),
+                    wl::SimulationWorld::eraName(era));
             }
             ImGui::Separator();
             ImGui::TextDisabled("Relations (vert=allie, rouge=guerre)");
@@ -261,7 +273,7 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
 
 int main() {
     try {
-        wl::Window window(1600, 900, "WarLand - Phase 7");
+        wl::Window window(1600, 900, "WarLand - Phase 8");
         glfwSetScrollCallback(window.handle(), scrollCallback);
 
         // --- Setup ImGui ---

@@ -28,6 +28,11 @@ const char* kBiomeNames[] = {
 
 const char* kEventNames[] = {"Secheresse", "Epidemie", "Recolte exceptionnelle"};
 
+// Eres : seuils cumulatifs de points de technologie.
+const char* kEraNames[] = {"Age de pierre", "Antiquite", "Ere industrielle",
+                           "Ere numerique", "Ere spatiale"};
+const double kEraThresholds[] = {0.0, 150.0, 600.0, 1800.0, 5000.0};
+
 // Probabilite globale qu'un choc survienne, par jour in-game.
 // ~ un evenement tous les 1.5 ans environ a l'echelle du monde.
 constexpr double kEventGlobalRatePerDay = 1.0 / (1.5 * 365.0);
@@ -67,6 +72,22 @@ const char* SimulationWorld::eventName(EventType t) {
     return kEventNames[i];
 }
 
+const char* SimulationWorld::eraName(int era) {
+    int n = static_cast<int>(sizeof(kEraNames) / sizeof(kEraNames[0]));
+    if (era < 0) era = 0;
+    if (era >= n) era = n - 1;
+    return kEraNames[era];
+}
+
+int SimulationWorld::eraForTech(double tech) {
+    int n = static_cast<int>(sizeof(kEraThresholds) / sizeof(kEraThresholds[0]));
+    int era = 0;
+    for (int i = 1; i < n; ++i) {
+        if (tech >= kEraThresholds[i]) era = i;
+    }
+    return era;
+}
+
 void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
     m_registry.clear();
     m_events.clear();
@@ -83,6 +104,7 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
     m_opinion.assign(m_civCount * m_civCount, 0.0f);
     m_warState.assign(m_civCount * m_civCount, 0);
     m_civPopulation.assign(m_civCount, 0.0);
+    m_civTech.assign(m_civCount, 0.0);
     std::uniform_real_distribution<float> initOp(-20.0f, 20.0f);
     for (int a = 0; a < m_civCount; ++a) {
         for (int b = a + 1; b < m_civCount; ++b) {
@@ -199,6 +221,14 @@ void SimulationWorld::tick(double days, int year) {
     tickDiplomacy(days, year);
     spawnEvents(days, year);
     recomputeAggregates();
+    tickTech(days); // utilise les populations par civ fraichement agregees
+}
+
+void SimulationWorld::tickTech(double days) {
+    // La recherche progresse avec la population (main-d'oeuvre savante).
+    for (int c = 0; c < m_civCount; ++c) {
+        m_civTech[c] += m_civPopulation[c] * 1.0e-6 * days;
+    }
 }
 
 void SimulationWorld::tickDiplomacy(double days, int year) {
@@ -262,6 +292,7 @@ void SimulationWorld::exchangeBetweenProvinces(double days) {
             if (eq == entt::null) continue;
             const CProvince& provQ = m_registry.get<CProvince>(eq);
             if (provQ.ocean) continue;
+            if (atWar(prov.civ, provQ.civ)) continue; // embargo entre ennemis
             const CStock& stockQ = m_registry.get<CStock>(eq);
             // On n'exporte que depuis le plus riche (chaque paire traitee une fois).
             if (stock.food > stockQ.food) {
@@ -279,6 +310,7 @@ void SimulationWorld::exchangeBetweenProvinces(double days) {
                 if (eq == entt::null) continue;
                 const CProvince& provQ = m_registry.get<CProvince>(eq);
                 if (provQ.ocean) continue;
+                if (atWar(prov.civ, provQ.civ)) continue; // pas de refuge chez l'ennemi
                 double balQ = m_registry.get<CPopulation>(eq).lastFoodBalance;
                 if (balQ > 0.0) sumPos += balQ;
             }
@@ -289,6 +321,7 @@ void SimulationWorld::exchangeBetweenProvinces(double days) {
                     if (eq == entt::null) continue;
                     const CProvince& provQ = m_registry.get<CProvince>(eq);
                     if (provQ.ocean) continue;
+                    if (atWar(prov.civ, provQ.civ)) continue;
                     double balQ = m_registry.get<CPopulation>(eq).lastFoodBalance;
                     if (balQ > 0.0) {
                         double moved = emigrants * (balQ / sumPos);

@@ -272,8 +272,13 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **Guerres/paix** déclenchées aux seuils, loguées dans la timeline
 - Panneau **Diplomatie** : population par civilisation + matrice de relations colorée (vert = allié, rouge = guerre)
 
-## Prochaine étape — Phase 8
+### Phase 8 — Ères & conséquences des guerres ✅
+- **Progression d'ères** : chaque civilisation accumule des points de technologie (selon sa population) et franchit les ères **Âge de pierre → Antiquité → Industrielle → Numérique → Spatiale** — [SimulationWorld::tickTech](src/simulation/SimulationWorld.cpp)
+- L'**ère globale** (civilisation la plus avancée) s'affiche dans la barre du haut ; l'ère par civ dans le panneau Diplomatie
+- **Embargo de guerre** : deux civilisations en guerre **cessent tout commerce** et leurs populations ne se réfugient plus chez l'ennemi → les conflits deviennent économiquement coûteux (effet émergent sur les famines)
 
-- **Conséquences des guerres** : la diplomatie influence le commerce (embargo entre ennemis) et déclenche des conflits territoriaux.
-- **Arbre technologique** et progression d'**ères** (âge de pierre → spatial).
-- **Langues & cultures**, espionnage, doctrines — cf. [GamePlan.md](GamePlan.md).
+## Prochaine étape — Phase 9+
+
+- **Conflits territoriaux** : les guerres changent l'appartenance des provinces frontalières.
+- **Cultures & langues** (barrières au commerce/diplomatie), espionnage, doctrines.
+- **Multi-planètes** et endgame spatial — cf. [GamePlan.md](GamePlan.md).

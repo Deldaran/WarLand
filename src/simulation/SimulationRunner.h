@@ -28,6 +28,7 @@ public:
         int civCount = 0;
         std::vector<float> opinion;          // matrice civ x civ (a plat)
         std::vector<double> civPopulation;   // population par civ
+        std::vector<double> civTech;         // points de technologie par civ
     };
 
     ~SimulationRunner();
