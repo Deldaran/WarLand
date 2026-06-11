@@ -107,6 +107,11 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
         ImGui::SameLine(0, 40);
         ImGui::Text("Population: %s", formatNumber(snap.totalPopulation).c_str());
         ImGui::SameLine(0, 40);
+        const std::string savePath = std::string(WARLAND_ASSETS_DIR) + "/saves/quicksave.json";
+        if (ImGui::Button("Sauver")) runner.requestSave(savePath);
+        ImGui::SameLine();
+        if (ImGui::Button("Charger")) runner.requestLoad(savePath);
+        ImGui::SameLine(0, 40);
         ImGui::Text("%.0f FPS", fps);
     }
     ImGui::End();

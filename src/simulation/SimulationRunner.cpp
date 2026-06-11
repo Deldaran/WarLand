@@ -44,8 +44,8 @@ void SimulationRunner::stop() {
 }
 
 void SimulationRunner::run() {
-    int year = -3000;
-    double dayOfYear = 0.0;
+    m_year = -3000;
+    m_dayOfYear = 0.0;
     auto last = clock_t::now();
 
     while (m_running.load()) {
@@ -53,18 +53,37 @@ void SimulationRunner::run() {
         double dt = std::chrono::duration<double>(now - last).count();
         last = now;
 
+        // Traitement d'une eventuelle requete de sauvegarde / chargement.
+        IoOp op = IoOp::None;
+        std::string path;
+        {
+            std::lock_guard<std::mutex> lock(m_ioMutex);
+            op = m_ioOp;
+            path = m_ioPath;
+            m_ioOp = IoOp::None;
+        }
+        if (op == IoOp::Save) {
+            m_world.saveToFile(path, m_year);
+        } else if (op == IoOp::Load) {
+            int y = m_year;
+            if (m_world.loadFromFile(path, y)) {
+                m_year = y;
+                m_dayOfYear = 0.0;
+            }
+        }
+
         if (!m_paused.load()) {
             double days = dt * m_speed.load() * 10.0; // 10 jours / s a x1
-            dayOfYear += days;
-            while (dayOfYear >= 365.0) {
-                dayOfYear -= 365.0;
-                ++year;
+            m_dayOfYear += days;
+            while (m_dayOfYear >= 365.0) {
+                m_dayOfYear -= 365.0;
+                ++m_year;
             }
-            m_world.tick(days, year);
+            m_world.tick(days, m_year);
         }
 
         // Publication de l'instantane (copie courte sous mutex).
-        Snapshot snap = buildSnapshot(year);
+        Snapshot snap = buildSnapshot(m_year);
         {
             std::lock_guard<std::mutex> lock(m_mutex);
             m_published = std::move(snap);
@@ -78,6 +97,18 @@ void SimulationRunner::run() {
 SimulationRunner::Snapshot SimulationRunner::snapshot() const {
     std::lock_guard<std::mutex> lock(m_mutex);
     return m_published;
+}
+
+void SimulationRunner::requestSave(const std::string& path) {
+    std::lock_guard<std::mutex> lock(m_ioMutex);
+    m_ioOp = IoOp::Save;
+    m_ioPath = path;
+}
+
+void SimulationRunner::requestLoad(const std::string& path) {
+    std::lock_guard<std::mutex> lock(m_ioMutex);
+    m_ioOp = IoOp::Load;
+    m_ioPath = path;
 }
 
 } // namespace wl

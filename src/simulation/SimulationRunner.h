@@ -42,9 +42,19 @@ public:
     // Cote rendu : copie du dernier instantane publie.
     Snapshot snapshot() const;
 
+    // Sauvegarde / chargement : la requete est executee par le thread de
+    // simulation (aucun acces concurrent au monde).
+    void requestSave(const std::string& path);
+    void requestLoad(const std::string& path);
+
 private:
     void run();
     Snapshot buildSnapshot(int year) const;
+
+    enum class IoOp { None, Save, Load };
+
+    int m_year = -3000;
+    double m_dayOfYear = 0.0;
 
     SimulationWorld m_world;
     std::thread m_thread;
@@ -54,6 +64,10 @@ private:
 
     mutable std::mutex m_mutex;
     Snapshot m_published;
+
+    std::mutex m_ioMutex;
+    IoOp m_ioOp = IoOp::None;
+    std::string m_ioPath;
 };
 
 } // namespace wl

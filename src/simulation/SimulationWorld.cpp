@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 namespace wl {
 
@@ -357,6 +359,90 @@ SimulationWorld::ProvinceState SimulationWorld::state(int provinceId) const {
         s.affliction = aff->type;
     }
     return s;
+}
+
+bool SimulationWorld::saveToFile(const std::string& path, int year) const {
+    nlohmann::json j;
+    j["year"] = year;
+    auto& jp = j["provinces"];
+    jp = nlohmann::json::array();
+    for (size_t i = 0; i < m_byProvince.size(); ++i) {
+        entt::entity e = m_byProvince[i];
+        if (e == entt::null) continue;
+        const CProvince& prov = m_registry.get<CProvince>(e);
+        if (prov.ocean) continue;
+        const CPopulation& pop = m_registry.get<CPopulation>(e);
+        const CStock& st = m_registry.get<CStock>(e);
+        nlohmann::json p;
+        p["id"] = prov.id;
+        p["pop"] = pop.count;
+        p["bal"] = pop.lastFoodBalance;
+        p["food"] = st.food;
+        p["mat"] = st.materials;
+        p["en"] = st.energy;
+        if (const CAffliction* a = m_registry.try_get<CAffliction>(e)) {
+            p["aff"] = {{"t", static_cast<int>(a->type)}, {"d", a->daysLeft},
+                        {"ff", a->foodFactor}, {"m", a->mortalityPerDay}};
+        }
+        jp.push_back(std::move(p));
+    }
+    auto& je = j["events"];
+    je = nlohmann::json::array();
+    for (const auto& ev : m_events) {
+        je.push_back({{"y", ev.year}, {"t", ev.text}, {"s", ev.severity}});
+    }
+
+    std::ofstream f(path);
+    if (!f) return false;
+    f << j.dump(1, '\t');
+    return true;
+}
+
+bool SimulationWorld::loadFromFile(const std::string& path, int& yearOut) {
+    std::ifstream f(path);
+    if (!f) return false;
+    nlohmann::json j;
+    try { f >> j; } catch (...) { return false; }
+
+    yearOut = j.value("year", -3000);
+    m_registry.clear<CAffliction>(); // on repart d'afflictions vierges
+
+    if (j.contains("provinces")) {
+        for (const auto& p : j["provinces"]) {
+            int id = p.value("id", -1);
+            if (id < 0 || id >= static_cast<int>(m_byProvince.size())) continue;
+            entt::entity e = m_byProvince[id];
+            if (e == entt::null) continue;
+            CPopulation& pop = m_registry.get<CPopulation>(e);
+            CStock& st = m_registry.get<CStock>(e);
+            pop.count = p.value("pop", 0.0);
+            pop.lastFoodBalance = p.value("bal", 0.0);
+            st.food = p.value("food", 0.0);
+            st.materials = p.value("mat", 0.0);
+            st.energy = p.value("en", 0.0);
+            if (p.contains("aff")) {
+                const auto& ja = p["aff"];
+                CAffliction a;
+                a.type = static_cast<EventType>(ja.value("t", 0));
+                a.daysLeft = ja.value("d", 0.0);
+                a.foodFactor = ja.value("ff", 1.0);
+                a.mortalityPerDay = ja.value("m", 0.0);
+                m_registry.emplace_or_replace<CAffliction>(e, a);
+            }
+        }
+    }
+
+    m_events.clear();
+    if (j.contains("events")) {
+        for (const auto& ev : j["events"]) {
+            m_events.push_back(EventRecord{ev.value("y", 0),
+                                           ev.value("t", std::string()),
+                                           ev.value("s", 1)});
+        }
+    }
+
+    recomputeAggregates();
+    return true;
 }
 
 std::vector<SimulationWorld::ProvinceState> SimulationWorld::allStates() const {

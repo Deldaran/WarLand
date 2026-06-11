@@ -58,6 +58,12 @@ public:
 
     const std::deque<EventRecord>& events() const { return m_events; }
 
+    // Sauvegarde / chargement de l'etat dynamique (JSON). La topologie des
+    // provinces (biomes, voisins) est deterministe : seul l'etat vivant est
+    // serialise puis reapplique sur les entites existantes.
+    bool saveToFile(const std::string& path, int year) const;
+    bool loadFromFile(const std::string& path, int& yearOut);
+
     static const char* biomeName(Biome b);
     static const char* eventName(EventType t);
 
