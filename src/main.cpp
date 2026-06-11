@@ -150,17 +150,25 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
     {
         if (selectedProvince >= 0) {
             ImGui::Text("Province #%d", selectedProvince);
-            glm::vec3 col = provinces.civColor(selectedCiv);
-            ImGui::Text("Civilisation #%d", selectedCiv);
-            ImGui::SameLine();
-            ImGui::ColorButton("##civ", ImVec4(col.r, col.g, col.b, 1.0f),
-                ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoPicker,
-                ImVec2(16, 16));
+            (void)selectedCiv;
 
             wl::SimulationWorld::ProvinceState st;
             if (selectedProvince < static_cast<int>(snap.provinces.size()))
                 st = snap.provinces[selectedProvince];
             if (st.valid) {
+                if (st.ocean) {
+                    ImGui::TextDisabled("Ocean");
+                } else if (st.civ < 0) {
+                    ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.75f, 1), "Territoire sauvage");
+                } else {
+                    glm::vec3 col = provinces.civColor(st.civ);
+                    ImGui::Text("Proprietaire : civ %d", st.civ);
+                    ImGui::SameLine();
+                    ImGui::ColorButton("##civ", ImVec4(col.r, col.g, col.b, 1.0f),
+                        ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoPicker,
+                        ImVec2(16, 16));
+                    ImGui::Text("Controle : %.0f%%", st.control);
+                }
                 ImGui::Spacing();
                 ImGui::Text("Biome : %s", wl::SimulationWorld::biomeName(st.biome));
                 if (st.ocean) {
@@ -224,8 +232,10 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
                 ImGui::SameLine();
                 int era = (i < static_cast<int>(snap.civTech.size()))
                     ? wl::SimulationWorld::eraForTech(snap.civTech[i]) : 0;
-                ImGui::Text("Civ %d : %s  [%s]", i,
-                    formatNumber(snap.civPopulation[i]).c_str(),
+                int nprov = (i < static_cast<int>(snap.civProvinceCount.size()))
+                    ? snap.civProvinceCount[i] : 0;
+                ImGui::Text("Civ %d : %s hab. - %d prov. [%s]", i,
+                    formatNumber(snap.civPopulation[i]).c_str(), nprov,
                     wl::SimulationWorld::eraName(era));
             }
             ImGui::Separator();
@@ -273,7 +283,7 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
 
 int main() {
     try {
-        wl::Window window(1600, 900, "WarLand - Phase 8");
+        wl::Window window(1600, 900, "WarLand - Phase 9");
         glfwSetScrollCallback(window.handle(), scrollCallback);
 
         // --- Setup ImGui ---
@@ -332,9 +342,10 @@ int main() {
 
         // Gestion de la couche overlay (politique ou heatmap de population).
         enum class OverlayMode { None, Political, Population };
-        OverlayMode overlayMode = OverlayMode::Political;
+        OverlayMode overlayMode = OverlayMode::None;
         double heatTimer = 0.0;
         std::vector<glm::vec3> heatColors(provinces.provinceCount());
+        std::vector<int> ownerBuf(provinces.provinceCount(), -2);
 
         double lastTime = glfwGetTime();
         double lastMouseX = 0, lastMouseY = 0;
@@ -403,18 +414,33 @@ int main() {
             wl::SimulationRunner::Snapshot snap = runner.snapshot();
 
             // --- Coloration de l'overlay selon la couche active ---
+            // Politique = appartenance courante (dynamique) ; Population = heatmap.
             OverlayMode desired = layers.population ? OverlayMode::Population
                                 : layers.politique  ? OverlayMode::Political
                                                     : OverlayMode::None;
-            if (desired == OverlayMode::Political && overlayMode != OverlayMode::Political) {
-                provinces.applyPoliticalColors();
-            }
-            if (desired == OverlayMode::Population && !snap.provinces.empty()) {
-                heatTimer += dt;
-                if (overlayMode != OverlayMode::Population || heatTimer >= 0.35) {
+            heatTimer += dt;
+            bool refresh = (desired != overlayMode) || heatTimer >= 0.30;
+            if (desired != OverlayMode::None && !snap.provinces.empty() && refresh) {
+                int count = std::min(provinces.provinceCount(),
+                                     static_cast<int>(snap.provinces.size()));
+                if (desired == OverlayMode::Political) {
+                    for (int p = 0; p < count; ++p) {
+                        const auto& st = snap.provinces[p];
+                        if (st.ocean) {
+                            heatColors[p] = glm::vec3(0.05f, 0.09f, 0.18f);
+                            ownerBuf[p] = -2;
+                        } else if (st.civ < 0) {
+                            heatColors[p] = glm::vec3(0.22f, 0.22f, 0.24f); // sauvage
+                            ownerBuf[p] = -1;
+                        } else {
+                            heatColors[p] = provinces.civColor(st.civ);
+                            ownerBuf[p] = st.civ;
+                        }
+                    }
+                    provinces.setProvinceColors(heatColors);
+                    provinces.rebuildBorders(ownerBuf);
+                } else { // Population
                     double maxP = snap.maxProvincePopulation;
-                    int count = std::min(provinces.provinceCount(),
-                                         static_cast<int>(snap.provinces.size()));
                     for (int p = 0; p < count; ++p) {
                         const auto& st = snap.provinces[p];
                         if (st.ocean) {
@@ -426,8 +452,8 @@ int main() {
                         }
                     }
                     provinces.setProvinceColors(heatColors);
-                    heatTimer = 0.0;
                 }
+                heatTimer = 0.0;
             }
             overlayMode = desired;
 

@@ -277,8 +277,16 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - L'**ère globale** (civilisation la plus avancée) s'affiche dans la barre du haut ; l'ère par civ dans le panneau Diplomatie
 - **Embargo de guerre** : deux civilisations en guerre **cessent tout commerce** et leurs populations ne se réfugient plus chez l'ennemi → les conflits deviennent économiquement coûteux (effet émergent sur les famines)
 
-## Prochaine étape — Phase 9+
+### Phase 9 — Expansion dynamique des civilisations ✅
+- **Appartenance dynamique** : chaque civilisation démarre avec **une seule province** (sa capitale) ; tout le reste est **terre sauvage** (`civ = -1`) — [SimulationWorld::tickExpansion](src/simulation/SimulationWorld.cpp)
+- **Colonisation** : les civs s'étendent dans les terres sauvages voisines selon leur **force projetée** (√population × techno × emprise), avec **usure impériale** (plus une civ est grande, plus elle s'étend lentement) → des tailles d'empire variées et émergentes
+- **Conquête** : en guerre, l'emprise (`control` 0–100) d'une province frontalière s'érode sous la pression ennemie ; à 0 elle **change de propriétaire** (loguée dans la timeline)
+- **Frontières mobiles** : l'overlay politique et les lignes de frontière sont **recolorés/reconstruits en continu** depuis l'état simulé ([ProvinceMap::rebuildBorders](src/renderer/overlay/ProvinceMap.h))
+- Échelle de temps accélérée (40 j/s à x1) pour voir les empires croître ; panneau Diplomatie : population, **nb de provinces** et ère par civ
+- *Validé : de 7 provinces (capitales) à 58/97 colonisées en ~12 ans simulés*
 
-- **Conflits territoriaux** : les guerres changent l'appartenance des provinces frontalières.
-- **Cultures & langues** (barrières au commerce/diplomatie), espionnage, doctrines.
+## Prochaine étape — Phase 10+
+
+- **Cultures & langues** comme barrières au commerce et à la diplomatie.
+- **Capitales & cohésion** : distance à la capitale, révoltes des provinces mal contrôlées.
 - **Multi-planètes** et endgame spatial — cf. [GamePlan.md](GamePlan.md).

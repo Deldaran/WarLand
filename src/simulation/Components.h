@@ -17,11 +17,15 @@ enum class Biome : uint8_t {
 };
 
 // Identite geographique et politique d'une province.
+// civ = proprietaire actuel (-1 = terre sauvage non colonisee). L'appartenance
+// est dynamique : les civilisations s'etendent et se conquierent.
 struct CProvince {
     int id = -1;
-    int civ = -1;
+    int civ = -1;          // proprietaire (-1 = sauvage)
     Biome biome = Biome::Ocean;
     bool ocean = true;
+    double control = 0.0;  // emprise du proprietaire (0..100)
+    int contender = -1;    // civ en train de coloniser une terre sauvage
 };
 
 // Population vivante de la province.

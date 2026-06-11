@@ -29,6 +29,7 @@ public:
         std::vector<float> opinion;          // matrice civ x civ (a plat)
         std::vector<double> civPopulation;   // population par civ
         std::vector<double> civTech;         // points de technologie par civ
+        std::vector<int> civProvinceCount;   // nombre de provinces par civ
     };
 
     ~SimulationRunner();

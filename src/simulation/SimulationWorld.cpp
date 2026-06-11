@@ -105,6 +105,7 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
     m_warState.assign(m_civCount * m_civCount, 0);
     m_civPopulation.assign(m_civCount, 0.0);
     m_civTech.assign(m_civCount, 0.0);
+    m_civProvinceCount.assign(m_civCount, 0);
     std::uniform_real_distribution<float> initOp(-20.0f, 20.0f);
     for (int a = 0; a < m_civCount; ++a) {
         for (int b = a + 1; b < m_civCount; ++b) {
@@ -114,6 +115,13 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
         }
     }
 
+    auto capacityOf = [](Biome b) {
+        const BiomeYield& y = kYields[static_cast<int>(b)];
+        return std::pow(100.0 * y.food * kFoodProdFactor, 2.0);
+    };
+
+    // Toutes les terres demarrent SAUVAGES (civ = -1) avec une petite
+    // population native ; seules les capitales appartiennent a une civ.
     for (int p = 0; p < n; ++p) {
         entt::entity e = m_registry.create();
         m_byProvince[p] = e;
@@ -123,21 +131,36 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
         Biome biome = deriveBiome(elev, lat, seaLevel);
         bool ocean = (biome == Biome::Ocean);
 
-        m_registry.emplace<CProvince>(e, CProvince{p, provinces.provinceCiv(p), biome, ocean});
+        m_registry.emplace<CProvince>(e, CProvince{p, -1, biome, ocean, 0.0, -1});
 
-        const BiomeYield& y = kYields[static_cast<int>(biome)];
-
-        double pop = 0.0;
-        if (!ocean) {
-            // Capacite de charge ~ (100 * yield_food * factor / conso)^2.
-            double cap = std::pow(100.0 * y.food * kFoodProdFactor, 2.0);
-            pop = std::max(200.0, cap * 0.25); // demarre a 25% de la capacite
-        }
+        double pop = ocean ? 0.0 : std::max(150.0, capacityOf(biome) * 0.04);
         m_registry.emplace<CPopulation>(e, CPopulation{pop, 0.0});
         m_registry.emplace<CStock>(e, CStock{ocean ? 0.0 : 50.0,
                                              ocean ? 0.0 : 20.0,
                                              ocean ? 0.0 : 20.0});
         if (!ocean) m_inhabited.push_back(e);
+    }
+
+    // Une capitale par civilisation : la meilleure province (nourriture) de sa
+    // region d'origine. C'est le point de depart de l'expansion.
+    for (int c = 0; c < m_civCount; ++c) {
+        int best = -1;
+        double bestCap = -1.0;
+        for (int p = 0; p < n; ++p) {
+            if (provinces.provinceCiv(p) != c) continue;
+            entt::entity e = m_byProvince[p];
+            const CProvince& pr = m_registry.get<CProvince>(e);
+            if (pr.ocean) continue;
+            double cap = capacityOf(pr.biome);
+            if (cap > bestCap) { bestCap = cap; best = p; }
+        }
+        if (best >= 0) {
+            entt::entity e = m_byProvince[best];
+            CProvince& pr = m_registry.get<CProvince>(e);
+            pr.civ = c;
+            pr.control = 100.0;
+            m_registry.get<CPopulation>(e).count = capacityOf(pr.biome) * 0.30;
+        }
     }
 
     recomputeAggregates();
@@ -220,14 +243,112 @@ void SimulationWorld::tick(double days, int year) {
     exchangeBetweenProvinces(days);
     tickDiplomacy(days, year);
     spawnEvents(days, year);
-    recomputeAggregates();
-    tickTech(days); // utilise les populations par civ fraichement agregees
+    recomputeAggregates();      // populations / comptes / par civ
+    tickTech(days);             // techno (depend des populations par civ)
+    tickExpansion(days, year);  // colonisation + conquete (depend tech/comptes)
+    recomputeAggregates();      // rafraichit les comptes apres changements d'appartenance
 }
 
 void SimulationWorld::tickTech(double days) {
     // La recherche progresse avec la population (main-d'oeuvre savante).
     for (int c = 0; c < m_civCount; ++c) {
         m_civTech[c] += m_civPopulation[c] * 1.0e-6 * days;
+    }
+}
+
+void SimulationWorld::tickExpansion(double days, int year) {
+    if (m_civCount < 1) return;
+    const size_t n = m_byProvince.size();
+
+    // Constantes d'expansion (calibrees pour une expansion visible mais graduelle).
+    constexpr double kBaseRegen = 0.6;   // regain d'emprise du proprietaire / jour
+    constexpr double kFriendly  = 0.002; // soutien des provinces alliees voisines
+    constexpr double kHostile   = 0.0011; // erosion par les ennemis (guerre)
+    constexpr double kColonize  = 0.0011; // progression de la colonisation
+
+    // Passe 1 : force projetee par chaque province (population, techno, usure).
+    std::vector<double> strength(n, 0.0);
+    for (size_t p = 0; p < n; ++p) {
+        entt::entity e = m_byProvince[p];
+        if (e == entt::null) continue;
+        const CProvince& pr = m_registry.get<CProvince>(e);
+        if (pr.ocean || pr.civ < 0) continue;
+        double pop = m_registry.get<CPopulation>(e).count;
+        double tech = 1.0 + 0.25 * eraForTech(m_civTech[pr.civ]);
+        double overstretch = 1.0 / (1.0 + 0.04 * m_civProvinceCount[pr.civ]); // usure imperiale
+        strength[p] = std::sqrt(std::max(0.0, pop)) * tech * overstretch * (pr.control / 100.0);
+    }
+
+    // Passe 2 : calcul des changements d'emprise / d'appartenance.
+    struct Change { int owner; double control; int contender; bool flip; };
+    std::vector<Change> chg(n);
+    std::vector<double> civStr(m_civCount, 0.0);
+
+    for (size_t p = 0; p < n; ++p) {
+        entt::entity e = m_byProvince[p];
+        if (e == entt::null) { chg[p] = {-1, 0.0, -1, false}; continue; }
+        const CProvince& pr = m_registry.get<CProvince>(e);
+        if (pr.ocean) { chg[p] = {pr.civ, pr.control, pr.contender, false}; continue; }
+
+        int ownerN = pr.civ;
+        double controlN = pr.control;
+
+        // Force de chaque civ voisine.
+        std::fill(civStr.begin(), civStr.end(), 0.0);
+        for (int q : m_neighbors[p]) {
+            entt::entity eq = m_byProvince[q];
+            if (eq == entt::null) continue;
+            const CProvince& pq = m_registry.get<CProvince>(eq);
+            if (pq.ocean || pq.civ < 0) continue;
+            civStr[pq.civ] += strength[q];
+        }
+
+        double friendly = (ownerN >= 0) ? civStr[ownerN] : 0.0;
+        int contender = -1;
+        double best = 0.0;
+        for (int c = 0; c < m_civCount; ++c) {
+            if (c == ownerN || civStr[c] <= 0.0) continue;
+            bool allowed = (ownerN < 0) ? true : atWar(ownerN, c); // sauvage: colonisable ; sinon guerre
+            if (allowed && civStr[c] > best) { best = civStr[c]; contender = c; }
+        }
+        double hostile = best;
+
+        Change ch{ownerN, controlN, contender, false};
+        if (ownerN >= 0) {
+            double dc = (kBaseRegen + friendly * kFriendly - hostile * kHostile) * days;
+            ch.control = std::clamp(controlN + dc, 0.0, 100.0);
+            if (ch.control <= 0.0 && contender >= 0) {
+                ch.owner = contender;     // province conquise
+                ch.control = 15.0;
+                ch.flip = true;
+            }
+        } else {
+            if (contender >= 0) {
+                if (pr.contender != contender) controlN *= 0.3; // un nouveau colonisateur repart presque de zero
+                ch.control = controlN + hostile * kColonize * days;
+                if (ch.control >= 100.0) { ch.owner = contender; ch.control = 60.0; } // colonisee
+            } else {
+                ch.control = std::max(0.0, controlN - 2.0 * days);
+            }
+        }
+        chg[p] = ch;
+    }
+
+    // Application + journalisation des conquetes (les colonisations sont trop
+    // frequentes pour etre toutes loguees).
+    for (size_t p = 0; p < n; ++p) {
+        entt::entity e = m_byProvince[p];
+        if (e == entt::null) continue;
+        CProvince& pr = m_registry.get<CProvince>(e);
+        if (pr.ocean) continue;
+        if (chg[p].flip) {
+            logEvent(year, "Conquete : civ " + std::to_string(chg[p].owner)
+                     + " prend la province #" + std::to_string(pr.id)
+                     + " a civ " + std::to_string(pr.civ), 2);
+        }
+        pr.civ = chg[p].owner;
+        pr.control = chg[p].control;
+        pr.contender = chg[p].contender;
     }
 }
 
@@ -402,6 +523,7 @@ void SimulationWorld::recomputeAggregates() {
     int inhabited = 0;
     int healthy = 0;
     std::fill(m_civPopulation.begin(), m_civPopulation.end(), 0.0);
+    std::fill(m_civProvinceCount.begin(), m_civProvinceCount.end(), 0);
 
     auto view = m_registry.view<CProvince, CPopulation>();
     for (auto e : view) {
@@ -412,8 +534,10 @@ void SimulationWorld::recomputeAggregates() {
         maxPop = std::max(maxPop, pop.count);
         ++inhabited;
         if (pop.lastFoodBalance >= 0.0) ++healthy;
-        if (prov.civ >= 0 && prov.civ < static_cast<int>(m_civPopulation.size()))
+        if (prov.civ >= 0 && prov.civ < m_civCount) {
             m_civPopulation[prov.civ] += pop.count;
+            ++m_civProvinceCount[prov.civ];
+        }
     }
 
     m_totalPopulation = total;
@@ -440,6 +564,7 @@ SimulationWorld::ProvinceState SimulationWorld::state(int provinceId) const {
     s.materials = stock.materials;
     s.energy = stock.energy;
     s.foodBalance = pop.lastFoodBalance;
+    s.control = prov.control;
     if (const CAffliction* aff = m_registry.try_get<CAffliction>(e)) {
         s.afflicted = true;
         s.affliction = aff->type;
@@ -461,6 +586,8 @@ bool SimulationWorld::saveToFile(const std::string& path, int year) const {
         const CStock& st = m_registry.get<CStock>(e);
         nlohmann::json p;
         p["id"] = prov.id;
+        p["civ"] = prov.civ;
+        p["ctrl"] = prov.control;
         p["pop"] = pop.count;
         p["bal"] = pop.lastFoodBalance;
         p["food"] = st.food;
@@ -499,6 +626,10 @@ bool SimulationWorld::loadFromFile(const std::string& path, int& yearOut) {
             if (id < 0 || id >= static_cast<int>(m_byProvince.size())) continue;
             entt::entity e = m_byProvince[id];
             if (e == entt::null) continue;
+            CProvince& pr = m_registry.get<CProvince>(e);
+            pr.civ = p.value("civ", -1);
+            pr.control = p.value("ctrl", 0.0);
+            pr.contender = -1;
             CPopulation& pop = m_registry.get<CPopulation>(e);
             CStock& st = m_registry.get<CStock>(e);
             pop.count = p.value("pop", 0.0);

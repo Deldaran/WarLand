@@ -23,6 +23,7 @@ SimulationRunner::Snapshot SimulationRunner::buildSnapshot(int year) const {
     snap.opinion = m_world.opinionMatrix();
     snap.civPopulation = m_world.civPopulations();
     snap.civTech = m_world.civTech();
+    snap.civProvinceCount = m_world.civProvinceCounts();
     return snap;
 }
 
@@ -77,7 +78,7 @@ void SimulationRunner::run() {
         }
 
         if (!m_paused.load()) {
-            double days = dt * m_speed.load() * 10.0; // 10 jours / s a x1
+            double days = dt * m_speed.load() * 40.0; // 40 jours / s a x1
             m_dayOfYear += days;
             while (m_dayOfYear >= 365.0) {
                 m_dayOfYear -= 365.0;

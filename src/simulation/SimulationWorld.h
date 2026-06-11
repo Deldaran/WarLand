@@ -32,6 +32,7 @@ public:
         double foodBalance = 0.0;
         bool afflicted = false;
         EventType affliction = EventType::Drought;
+        double control = 0.0; // emprise du proprietaire (0..100)
     };
 
     // Entree du journal historique (timeline).
@@ -61,6 +62,7 @@ public:
     const std::vector<float>& opinionMatrix() const { return m_opinion; }
     const std::vector<double>& civPopulations() const { return m_civPopulation; }
     const std::vector<double>& civTech() const { return m_civTech; }
+    const std::vector<int>& civProvinceCounts() const { return m_civProvinceCount; }
 
     static const char* eraName(int era);
     static int eraForTech(double tech); // indice d'ere a partir des points de techno
@@ -90,6 +92,7 @@ private:
     std::vector<float> m_opinion;        // matrice civ x civ (a plat)
     std::vector<double> m_civPopulation; // population totale par civ
     std::vector<double> m_civTech;       // points de technologie par civ
+    std::vector<int> m_civProvinceCount; // nombre de provinces par civ
     std::vector<char> m_warState;        // etat de guerre par paire (a plat)
 
     bool atWar(int civA, int civB) const {
@@ -104,6 +107,7 @@ private:
     void exchangeBetweenProvinces(double days); // commerce + migration
     void tickDiplomacy(double days, int year);
     void tickTech(double days);
+    void tickExpansion(double days, int year); // colonisation + conquete
     void spawnEvents(double days, int year);
     void logEvent(int year, std::string text, int severity);
 };

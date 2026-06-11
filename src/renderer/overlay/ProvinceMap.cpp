@@ -107,6 +107,7 @@ void ProvinceMap::build(const PlanetMesh& planet, const Params& params) {
 
     m_vertexProvince.resize(dirs.size());
     m_overlayPositions.resize(dirs.size());
+    m_triIndices.assign(indices.begin(), indices.end());
 
     std::vector<double> elevSum(params.provinces, 0.0);
     std::vector<double> latSum(params.provinces, 0.0);
@@ -281,6 +282,33 @@ void ProvinceMap::drawBorders() const {
     glBindVertexArray(m_borderVao);
     glDrawArrays(GL_LINES, 0, m_borderVertexCount);
     glBindVertexArray(0);
+}
+
+void ProvinceMap::rebuildBorders(const std::vector<int>& owner) {
+    std::unordered_set<uint64_t> seen;
+    std::vector<float> bverts;
+    auto consider = [&](int a, int b) {
+        int oa = owner[m_vertexProvince[a]];
+        int ob = owner[m_vertexProvince[b]];
+        if (oa == ob) return;
+        if (oa == -2 || ob == -2) return; // pas de frontiere le long des cotes
+        uint64_t key = edgeKey(a, b);
+        if (!seen.insert(key).second) return;
+        glm::vec3 pa = m_overlayPositions[a] * 1.0015f;
+        glm::vec3 pb = m_overlayPositions[b] * 1.0015f;
+        bverts.insert(bverts.end(), {pa.x, pa.y, pa.z, pb.x, pb.y, pb.z});
+    };
+    for (size_t i = 0; i + 2 < m_triIndices.size(); i += 3) {
+        int v0 = m_triIndices[i], v1 = m_triIndices[i + 1], v2 = m_triIndices[i + 2];
+        consider(v0, v1);
+        consider(v1, v2);
+        consider(v2, v0);
+    }
+    m_borderVertexCount = static_cast<int>(bverts.size() / 3);
+
+    glBindBuffer(GL_ARRAY_BUFFER, m_borderVbo);
+    glBufferData(GL_ARRAY_BUFFER, bverts.size() * sizeof(float),
+                 bverts.data(), GL_DYNAMIC_DRAW);
 }
 
 } // namespace wl

@@ -31,6 +31,11 @@ public:
     void draw() const;
     void drawBorders() const; // lignes de frontiere entre civilisations
 
+    // Reconstruit les frontieres a partir du proprietaire courant de chaque
+    // province (owner indexe par id ; -2 = ocean, -1 = sauvage). Une frontiere
+    // est tracee entre deux proprietaires differents, hors ocean.
+    void rebuildBorders(const std::vector<int>& owner);
+
     int provinceCount() const { return m_provinceCount; }
     int civCount() const { return m_civCount; }
 
@@ -77,9 +82,10 @@ private:
     std::vector<float> m_provinceLatitude;
     std::vector<std::vector<int>> m_neighbors;
 
-    // Conserves pour la recoloration dynamique.
+    // Conserves pour la recoloration / reconstruction dynamiques.
     std::vector<int> m_vertexProvince;
     std::vector<glm::vec3> m_overlayPositions; // positions deja surelevees
+    std::vector<unsigned int> m_triIndices;    // connectivite (pour les frontieres)
 };
 
 } // namespace wl
