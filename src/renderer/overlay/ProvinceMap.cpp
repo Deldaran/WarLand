@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 
 #include <vector>
+#include <unordered_set>
 #include <cmath>
 
 namespace wl {
@@ -119,6 +120,25 @@ void ProvinceMap::build(const PlanetMesh& planet, const Params& params) {
         m_provinceLatitude[p] = static_cast<float>(latSum[p] / n);
     }
 
+    // Graphe d'adjacence : deux provinces sont voisines si une arete de
+    // triangle relie un sommet de l'une a un sommet de l'autre.
+    std::vector<std::unordered_set<int>> adj(params.provinces);
+    auto addEdge = [&](int a, int b) {
+        int pa = m_vertexProvince[a];
+        int pb = m_vertexProvince[b];
+        if (pa != pb) { adj[pa].insert(pb); adj[pb].insert(pa); }
+    };
+    for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+        int v0 = indices[i], v1 = indices[i + 1], v2 = indices[i + 2];
+        addEdge(v0, v1);
+        addEdge(v1, v2);
+        addEdge(v2, v0);
+    }
+    m_neighbors.resize(params.provinces);
+    for (int p = 0; p < params.provinces; ++p) {
+        m_neighbors[p].assign(adj[p].begin(), adj[p].end());
+    }
+
     m_indexCount = static_cast<int>(indices.size());
 
     glGenVertexArrays(1, &m_vao);
@@ -185,6 +205,12 @@ float ProvinceMap::provinceElevation(int province) const {
 float ProvinceMap::provinceLatitude(int province) const {
     if (province < 0 || province >= static_cast<int>(m_provinceLatitude.size())) return 0.0f;
     return m_provinceLatitude[province];
+}
+
+const std::vector<int>& ProvinceMap::neighbors(int province) const {
+    static const std::vector<int> empty;
+    if (province < 0 || province >= static_cast<int>(m_neighbors.size())) return empty;
+    return m_neighbors[province];
 }
 
 void ProvinceMap::pick(const glm::vec3& dir, int& province, int& civ) const {

@@ -63,6 +63,7 @@ private:
     entt::registry m_registry;
     std::vector<entt::entity> m_byProvince;  // index = id de province
     std::vector<entt::entity> m_inhabited;   // provinces non oceaniques
+    std::vector<std::vector<int>> m_neighbors; // graphe d'adjacence (par id)
 
     double m_totalPopulation = 0.0;
     double m_maxProvincePopulation = 1.0;
@@ -72,6 +73,7 @@ private:
     std::deque<EventRecord> m_events;
 
     void recomputeAggregates();
+    void exchangeBetweenProvinces(double days); // commerce + migration
     void spawnEvents(double days, int year);
     void logEvent(int year, std::string text, int severity);
 };

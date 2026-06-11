@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 
 namespace wl {
 
@@ -71,6 +72,10 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
     const int n = provinces.provinceCount();
     m_byProvince.assign(n, entt::null);
 
+    // Copie du graphe d'adjacence pour le commerce / la migration.
+    m_neighbors.assign(n, {});
+    for (int p = 0; p < n; ++p) m_neighbors[p] = provinces.neighbors(p);
+
     for (int p = 0; p < n; ++p) {
         entt::entity e = m_registry.create();
         m_byProvince[p] = e;
@@ -98,6 +103,12 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
     }
 
     recomputeAggregates();
+
+    size_t edges = 0;
+    for (auto& nb : m_neighbors) edges += nb.size();
+    double deg = n > 0 ? static_cast<double>(edges) / n : 0.0;
+    std::cerr << "[Sim] " << n << " provinces, " << m_inhabited.size()
+              << " habitees, degre moyen " << deg << "\n";
 }
 
 void SimulationWorld::tick(double days, int year) {
@@ -168,8 +179,85 @@ void SimulationWorld::tick(double days, int year) {
         stock.energy = std::clamp(stock.energy, 0.0, 1.0e6);
     }
 
+    exchangeBetweenProvinces(days);
     spawnEvents(days, year);
     recomputeAggregates();
+}
+
+void SimulationWorld::exchangeBetweenProvinces(double days) {
+    const size_t n = m_byProvince.size();
+    if (n == 0) return;
+
+    std::vector<double> foodDelta(n, 0.0);
+    std::vector<double> popDelta(n, 0.0);
+
+    // Fraction des ecarts effectivement transferee sur ce pas de temps.
+    double tradeFrac = std::clamp(0.05 * days, 0.0, 0.40);   // commerce de nourriture
+    double migFrac = std::clamp(0.004 * days, 0.0, 0.40);    // depart des affames
+
+    for (size_t pid = 0; pid < n; ++pid) {
+        entt::entity e = m_byProvince[pid];
+        if (e == entt::null) continue;
+        const CProvince& prov = m_registry.get<CProvince>(e);
+        if (prov.ocean) continue;
+
+        const CStock& stock = m_registry.get<CStock>(e);
+        const CPopulation& pop = m_registry.get<CPopulation>(e);
+
+        // --- Commerce : la nourriture s'ecoule vers les voisins moins pourvus ---
+        for (int q : m_neighbors[pid]) {
+            entt::entity eq = m_byProvince[q];
+            if (eq == entt::null) continue;
+            const CProvince& provQ = m_registry.get<CProvince>(eq);
+            if (provQ.ocean) continue;
+            const CStock& stockQ = m_registry.get<CStock>(eq);
+            // On n'exporte que depuis le plus riche (chaque paire traitee une fois).
+            if (stock.food > stockQ.food) {
+                double share = (stock.food - stockQ.food) * tradeFrac * 0.5;
+                foodDelta[pid] -= share;
+                foodDelta[q] += share;
+            }
+        }
+
+        // --- Migration : les affames fuient vers les voisins en surplus ---
+        if (pop.lastFoodBalance < 0.0 && pop.count > 1.0) {
+            double sumPos = 0.0;
+            for (int q : m_neighbors[pid]) {
+                entt::entity eq = m_byProvince[q];
+                if (eq == entt::null) continue;
+                const CProvince& provQ = m_registry.get<CProvince>(eq);
+                if (provQ.ocean) continue;
+                double balQ = m_registry.get<CPopulation>(eq).lastFoodBalance;
+                if (balQ > 0.0) sumPos += balQ;
+            }
+            if (sumPos > 0.0) {
+                double emigrants = pop.count * migFrac;
+                for (int q : m_neighbors[pid]) {
+                    entt::entity eq = m_byProvince[q];
+                    if (eq == entt::null) continue;
+                    const CProvince& provQ = m_registry.get<CProvince>(eq);
+                    if (provQ.ocean) continue;
+                    double balQ = m_registry.get<CPopulation>(eq).lastFoodBalance;
+                    if (balQ > 0.0) {
+                        double moved = emigrants * (balQ / sumPos);
+                        popDelta[pid] -= moved;
+                        popDelta[q] += moved;
+                    }
+                }
+            }
+        }
+    }
+
+    // Application des deltas.
+    for (size_t pid = 0; pid < n; ++pid) {
+        entt::entity e = m_byProvince[pid];
+        if (e == entt::null) continue;
+        if (m_registry.get<CProvince>(e).ocean) continue;
+        CStock& stock = m_registry.get<CStock>(e);
+        CPopulation& pop = m_registry.get<CPopulation>(e);
+        stock.food = std::max(0.0, stock.food + foodDelta[pid]);
+        pop.count = std::max(0.0, pop.count + popDelta[pid]);
+    }
 }
 
 void SimulationWorld::spawnEvents(double days, int year) {

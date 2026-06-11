@@ -44,6 +44,9 @@ public:
     float provinceElevation(int province) const; // [-1,1] moyenne
     float provinceLatitude(int province) const;   // 0 equateur -> 1 pole
 
+    // Graphe d'adjacence : provinces partageant une frontiere (commerce/migration).
+    const std::vector<int>& neighbors(int province) const;
+
     // Recolore l'overlay a partir d'une couleur par province (heatmap, etc.).
     // Re-uploade le VBO ; a appeler quand les donnees changent, pas chaque frame.
     void setProvinceColors(const std::vector<glm::vec3>& provinceColors);
@@ -67,6 +70,7 @@ private:
     std::vector<glm::vec3> m_civColors;
     std::vector<float> m_provinceElevation;
     std::vector<float> m_provinceLatitude;
+    std::vector<std::vector<int>> m_neighbors;
 
     // Conserves pour la recoloration dynamique.
     std::vector<int> m_vertexProvince;

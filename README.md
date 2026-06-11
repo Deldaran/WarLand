@@ -244,9 +244,19 @@ Contrôles : **drag souris** = orbite caméra · **molette** = zoom (jusqu'au so
 
 La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/SimulationWorld.cpp) ne touche jamais à OpenGL) — prête pour un passage multi-thread ultérieur.
 
-## Prochaine étape — Phase 3b / 4
+### Phase 3b — Événements & chocs ✅
+- **Sécheresse** (production de nourriture à 35 %, 1–3 ans), **épidémie** (mortalité continue), **récolte exceptionnelle** (bonus) — composant `CAffliction`, tirage ~Poisson
+- Les chocs créent de **vraies famines** → la stabilité chute, la heatmap se vide localement
+- **Journal historique** horodaté → la **timeline** du bas se remplit (coloré par gravité)
 
-- **Chocs et événements** : sécheresses, épidémies → famines visibles, timeline qui se remplit.
-- **Migration & commerce** entre provinces voisines (les surplus se déplacent vers les pénuries).
-- **Frontières nettes** entre civilisations + couches Économie/Climat.
+### Phase 4 — Migration & commerce ✅
+- **Graphe d'adjacence** des provinces construit depuis les arêtes du maillage (deux provinces voisines si une arête de triangle les relie) — [ProvinceMap::neighbors](src/renderer/overlay/ProvinceMap.h) (~6 voisins/province)
+- **Commerce** : la nourriture diffuse des provinces riches vers les voisines moins pourvues → les routes commerciales atténuent les famines locales
+- **Migration** : les populations affamées **fuient** vers les voisins en surplus, réparties au prorata de leur situation alimentaire
+- Échanges calculés en **deltas** puis appliqués (pas de dépendance à l'ordre d'itération) — [SimulationWorld::exchangeBetweenProvinces](src/simulation/SimulationWorld.cpp)
+
+## Prochaine étape — Phase 5
+
 - **Multi-thread** : déplacer la simulation sur son propre thread (double buffer) comme prévu dans l'architecture.
+- **Diplomatie & frontières nettes** entre civilisations, couche Économie.
+- **Sauvegarde/chargement** JSON de l'état du monde (nlohmann/json déjà intégré).
