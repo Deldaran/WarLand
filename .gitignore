@@ -1,0 +1,34 @@
+# Build output
+/build/
+/out/
+/cmake-build-*/
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.obj
+*.o
+*.a
+*.lib
+*.exp
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+_deps/
+
+# IDE
+.vs/
+.vscode/
+!.vscode/settings.json
+.idea/
+*.user
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Saves générées en jeu (on garde le dossier via .gitkeep)
+/saves/*.json
