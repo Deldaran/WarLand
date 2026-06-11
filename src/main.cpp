@@ -329,8 +329,8 @@ int main() {
 
         // Couche politique : decoupage en provinces / civilisations.
         wl::ProvinceMap::Params provParams;
-        provParams.provinces = 220;
-        provParams.civs = 7;
+        provParams.provinces = 900; // provinces fines -> pays de depart petits
+        provParams.civs = 10;
         wl::ProvinceMap provinces(planet, provParams);
 
         // Simulation sur son propre thread (decouplee du rendu).
