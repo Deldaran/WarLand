@@ -175,6 +175,10 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
                         ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1), "Nourriture : surplus");
                     else
                         ImGui::TextColored(ImVec4(0.95f, 0.4f, 0.3f, 1), "Nourriture : FAMINE");
+                    if (st.afflicted) {
+                        ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.2f, 1), "Choc : %s",
+                            wl::SimulationWorld::eventName(st.affliction));
+                    }
                     ImGui::Separator();
                     ImGui::Text("Stocks");
                     ImGui::BulletText("Nourriture : %s", formatNumber(st.food).c_str());
@@ -205,7 +209,22 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
                             ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(vp->WorkSize.x, 80), ImGuiCond_FirstUseEver);
     ImGui::Begin("Timeline des evenements");
-    ImGui::TextDisabled("(Phase 3 - simulation vivante : population pilotee par la nourriture)");
+    {
+        const auto& evs = sim.events();
+        if (evs.empty()) {
+            ImGui::TextDisabled("Aucun evenement - accelere le temps (x10) et observe...");
+        } else {
+            // Du plus recent au plus ancien.
+            for (auto it = evs.rbegin(); it != evs.rend(); ++it) {
+                ImVec4 col = it->severity == 0 ? ImVec4(0.5f, 0.9f, 0.5f, 1)
+                           : it->severity == 1 ? ImVec4(0.9f, 0.8f, 0.3f, 1)
+                                               : ImVec4(0.95f, 0.45f, 0.35f, 1);
+                ImGui::TextColored(col, "An %d", it->year);
+                ImGui::SameLine();
+                ImGui::TextUnformatted(it->text.c_str());
+            }
+        }
+    }
     ImGui::End();
 }
 
@@ -339,7 +358,7 @@ int main() {
 
             // --- Avancee de la simulation ---
             double simDays = clock.advance(dt);
-            sim.tick(simDays);
+            sim.tick(simDays, clock.year);
 
             // --- Coloration de l'overlay selon la couche active ---
             OverlayMode desired = layers.population ? OverlayMode::Population

@@ -5,6 +5,8 @@
 #include <entt/entt.hpp>
 #include <vector>
 #include <string>
+#include <deque>
+#include <random>
 
 namespace wl {
 
@@ -28,13 +30,22 @@ public:
         double materials = 0.0;
         double energy = 0.0;
         double foodBalance = 0.0;
+        bool afflicted = false;
+        EventType affliction = EventType::Drought;
+    };
+
+    // Entree du journal historique (timeline).
+    struct EventRecord {
+        int year = 0;
+        std::string text;
+        int severity = 1; // 0 = positif, 1 = avertissement, 2 = grave
     };
 
     // Cree les entites a partir du decoupage geographique des provinces.
     void init(const ProvinceMap& provinces, float seaLevel = 0.0f);
 
     // Avance la simulation de `days` jours in-game (0 si en pause).
-    void tick(double days);
+    void tick(double days, int year);
 
     ProvinceState state(int provinceId) const;
     double population(int provinceId) const;
@@ -43,17 +54,26 @@ public:
     double maxProvincePopulation() const { return m_maxProvincePopulation; }
     double stability() const { return m_stability; } // 0..1 (fraction sans famine)
 
+    const std::deque<EventRecord>& events() const { return m_events; }
+
     static const char* biomeName(Biome b);
+    static const char* eventName(EventType t);
 
 private:
     entt::registry m_registry;
-    std::vector<entt::entity> m_byProvince; // index = id de province
+    std::vector<entt::entity> m_byProvince;  // index = id de province
+    std::vector<entt::entity> m_inhabited;   // provinces non oceaniques
 
     double m_totalPopulation = 0.0;
     double m_maxProvincePopulation = 1.0;
     double m_stability = 1.0;
 
+    std::mt19937 m_rng{12345u};
+    std::deque<EventRecord> m_events;
+
     void recomputeAggregates();
+    void spawnEvents(double days, int year);
+    void logEvent(int year, std::string text, int severity);
 };
 
 } // namespace wl

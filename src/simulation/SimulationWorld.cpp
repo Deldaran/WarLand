@@ -23,6 +23,12 @@ const BiomeYield kYields[] = {
 const char* kBiomeNames[] = {
     "Ocean", "Desert", "Prairie", "Foret", "Toundra", "Montagne", "Polaire"};
 
+const char* kEventNames[] = {"Secheresse", "Epidemie", "Recolte exceptionnelle"};
+
+// Probabilite globale qu'un choc survienne, par jour in-game.
+// ~ un evenement tous les 1.5 ans environ a l'echelle du monde.
+constexpr double kEventGlobalRatePerDay = 1.0 / (1.5 * 365.0);
+
 // Consommation par habitant (par jour).
 constexpr double kFoodPerCapita = 0.010;
 constexpr double kMaterialsPerCapita = 0.002;
@@ -52,8 +58,16 @@ const char* SimulationWorld::biomeName(Biome b) {
     return kBiomeNames[i];
 }
 
+const char* SimulationWorld::eventName(EventType t) {
+    int i = static_cast<int>(t);
+    if (i < 0 || i >= static_cast<int>(EventType::Count)) return "?";
+    return kEventNames[i];
+}
+
 void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
     m_registry.clear();
+    m_events.clear();
+    m_inhabited.clear();
     const int n = provinces.provinceCount();
     m_byProvince.assign(n, entt::null);
 
@@ -80,12 +94,13 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
         m_registry.emplace<CStock>(e, CStock{ocean ? 0.0 : 50.0,
                                              ocean ? 0.0 : 20.0,
                                              ocean ? 0.0 : 20.0});
+        if (!ocean) m_inhabited.push_back(e);
     }
 
     recomputeAggregates();
 }
 
-void SimulationWorld::tick(double days) {
+void SimulationWorld::tick(double days, int year) {
     if (days <= 0.0) return;
     days = std::min(days, 10.0); // garde-fou contre les gros pas de temps
 
@@ -98,11 +113,25 @@ void SimulationWorld::tick(double days) {
         CStock& stock = view.get<CStock>(e);
         const BiomeYield& y = kYields[static_cast<int>(prov.biome)];
 
+        // Choc actif sur la province (secheresse, epidemie...).
+        double foodFactor = 1.0;
+        double mortalityPerDay = 0.0;
+        if (CAffliction* aff = m_registry.try_get<CAffliction>(e)) {
+            foodFactor = aff->foodFactor;
+            mortalityPerDay = aff->mortalityPerDay;
+            aff->daysLeft -= days;
+            if (aff->daysLeft <= 0.0) {
+                logEvent(year, std::string("Fin de ") + eventName(aff->type)
+                         + " - province #" + std::to_string(prov.id), 0);
+                m_registry.remove<CAffliction>(e);
+            }
+        }
+
         double workers = std::max(0.0, pop.count);
         double sq = std::sqrt(workers);
 
         // --- Nourriture : moteur de la dynamique de population ---
-        double foodProd = y.food * sq * kFoodProdFactor;
+        double foodProd = y.food * sq * kFoodProdFactor * foodFactor;
         double foodCons = workers * kFoodPerCapita;
         double balance = foodProd - foodCons; // par jour
         pop.lastFoodBalance = balance;
@@ -122,6 +151,11 @@ void SimulationWorld::tick(double days) {
             double deathPerDay = std::min(0.004, 0.004 * deficit / (foodCons * days + 1.0));
             pop.count = workers * std::pow(1.0 - deathPerDay, days);
         }
+
+        // Mortalite supplementaire due a un choc (epidemie).
+        if (mortalityPerDay > 0.0) {
+            pop.count *= std::pow(1.0 - mortalityPerDay, days);
+        }
         pop.count = std::clamp(pop.count, 0.0, 5.0e6);
 
         // --- Materiaux & energie : extraction vs entretien ---
@@ -134,7 +168,59 @@ void SimulationWorld::tick(double days) {
         stock.energy = std::clamp(stock.energy, 0.0, 1.0e6);
     }
 
+    spawnEvents(days, year);
     recomputeAggregates();
+}
+
+void SimulationWorld::spawnEvents(double days, int year) {
+    if (m_inhabited.empty()) return;
+
+    // Nombre d'evenements attendus sur ce pas de temps (loi ~Poisson).
+    double expected = days * kEventGlobalRatePerDay;
+    std::uniform_real_distribution<double> u01(0.0, 1.0);
+    int count = static_cast<int>(expected);
+    if (u01(m_rng) < (expected - count)) ++count;
+
+    std::uniform_int_distribution<size_t> pickProv(0, m_inhabited.size() - 1);
+    std::uniform_int_distribution<int> pickType(0, static_cast<int>(EventType::Count) - 1);
+
+    for (int k = 0; k < count; ++k) {
+        entt::entity e = m_inhabited[pickProv(m_rng)];
+        if (m_registry.any_of<CAffliction>(e)) continue; // deja afflige
+        const CProvince& prov = m_registry.get<CProvince>(e);
+
+        EventType type = static_cast<EventType>(pickType(m_rng));
+        CAffliction aff;
+        aff.type = type;
+        int severity = 1;
+        switch (type) {
+            case EventType::Drought:
+                aff.foodFactor = 0.35;
+                aff.daysLeft = 365.0 * (1.0 + u01(m_rng) * 2.0); // 1 a 3 ans
+                severity = 2;
+                break;
+            case EventType::Epidemic:
+                aff.mortalityPerDay = 0.0015;
+                aff.daysLeft = 365.0 * (0.5 + u01(m_rng)); // 0.5 a 1.5 an
+                severity = 2;
+                break;
+            case EventType::BumperHarvest:
+                aff.foodFactor = 1.6;
+                aff.daysLeft = 365.0; // 1 an
+                severity = 0;
+                break;
+            default: break;
+        }
+        m_registry.emplace<CAffliction>(e, aff);
+        logEvent(year, std::string(eventName(type)) + " - province #"
+                 + std::to_string(prov.id) + " (civ " + std::to_string(prov.civ) + ")",
+                 severity);
+    }
+}
+
+void SimulationWorld::logEvent(int year, std::string text, int severity) {
+    m_events.push_back(EventRecord{year, std::move(text), severity});
+    if (m_events.size() > 60) m_events.pop_front();
 }
 
 void SimulationWorld::recomputeAggregates() {
@@ -178,6 +264,10 @@ SimulationWorld::ProvinceState SimulationWorld::state(int provinceId) const {
     s.materials = stock.materials;
     s.energy = stock.energy;
     s.foodBalance = pop.lastFoodBalance;
+    if (const CAffliction* aff = m_registry.try_get<CAffliction>(e)) {
+        s.afflicted = true;
+        s.affliction = aff->type;
+    }
     return s;
 }
 

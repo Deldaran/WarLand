@@ -44,4 +44,20 @@ struct BiomeYield {
     double energy;
 };
 
+// Types de chocs qui frappent les provinces.
+enum class EventType : uint8_t {
+    Drought = 0,    // secheresse : effondre la production de nourriture
+    Epidemic,       // epidemie : mortalite continue
+    BumperHarvest,  // recolte exceptionnelle : bonus de nourriture
+    Count
+};
+
+// Affliction active sur une province (un choc en cours).
+struct CAffliction {
+    EventType type = EventType::Drought;
+    double daysLeft = 0.0;
+    double foodFactor = 1.0;       // multiplie la production de nourriture
+    double mortalityPerDay = 0.0;  // pertes de population par jour
+};
+
 } // namespace wl
