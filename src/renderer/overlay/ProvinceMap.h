@@ -33,6 +33,13 @@ public:
     int provinceCount() const { return m_provinceCount; }
     int civCount() const { return m_civCount; }
 
+    // Selection : a partir d'une direction unitaire en espace modele (issue d'un
+    // ray-sphere), renvoie la province et la civilisation touchees.
+    void pick(const glm::vec3& dir, int& province, int& civ) const;
+
+    glm::vec3 civColor(int civ) const;
+    int provinceCiv(int province) const;
+
 private:
     void build(const PlanetMesh& planet, const Params& params);
 
@@ -42,6 +49,10 @@ private:
     int m_indexCount = 0;
     int m_provinceCount = 0;
     int m_civCount = 0;
+
+    std::vector<glm::vec3> m_provinceSeeds;
+    std::vector<int> m_provinceCiv;
+    std::vector<glm::vec3> m_civColors;
 };
 
 } // namespace wl

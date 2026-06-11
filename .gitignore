@@ -32,3 +32,6 @@ Thumbs.db
 
 # Saves générées en jeu (on garde le dossier via .gitkeep)
 /saves/*.json
+
+# Layout ImGui généré au runtime
+imgui.ini

@@ -63,7 +63,8 @@ struct SimClock {
 };
 
 void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
-            const wl::PlanetMesh& planet, const wl::ProvinceMap& provinces, double fps) {
+            const wl::PlanetMesh& planet, const wl::ProvinceMap& provinces,
+            int selectedProvince, int selectedCiv, double fps) {
     ImGuiViewport* vp = ImGui::GetMainViewport();
 
     // --- Barre superieure : date, vitesse, stabilite, alertes ---
@@ -117,7 +118,18 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
     ImGui::SetNextWindowSize(ImVec2(260, 320), ImGuiCond_FirstUseEver);
     ImGui::Begin("Contexte");
     {
-        ImGui::TextDisabled("Aucune zone selectionnee");
+        if (selectedProvince >= 0) {
+            ImGui::Text("Province #%d", selectedProvince);
+            glm::vec3 col = provinces.civColor(selectedCiv);
+            ImGui::Text("Civilisation #%d", selectedCiv);
+            ImGui::SameLine();
+            ImGui::ColorButton("##civ", ImVec4(col.r, col.g, col.b, 1.0f),
+                ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoPicker,
+                ImVec2(16, 16));
+        } else {
+            ImGui::TextDisabled("Clic gauche sur une province");
+            ImGui::TextDisabled("pour la selectionner");
+        }
         ImGui::Separator();
         ImGui::Text("Planete");
         ImGui::BulletText("%d triangles", planet.triangleCount());
@@ -200,6 +212,13 @@ int main() {
         double lastMouseX = 0, lastMouseY = 0;
         bool dragging = false;
 
+        // Etat de selection (picking).
+        int selectedProvince = -1;
+        int selectedCiv = -1;
+        bool wasLeftDown = false;
+        bool clickCandidate = false;
+        double pressX = 0, pressY = 0;
+
         while (!window.shouldClose()) {
             double now = glfwGetTime();
             double dt = now - lastTime;
@@ -215,6 +234,26 @@ int main() {
             double mx, my;
             glfwGetCursorPos(window.handle(), &mx, &my);
             bool leftDown = glfwGetMouseButton(window.handle(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+
+            // Distinction clic (selection) vs glisser (orbite).
+            bool doPick = false;
+            double pickX = 0, pickY = 0;
+            if (leftDown && !wasLeftDown && !io.WantCaptureMouse) {
+                clickCandidate = true;
+                pressX = mx;
+                pressY = my;
+            }
+            if (clickCandidate) {
+                double moved = std::hypot(mx - pressX, my - pressY);
+                if (moved > 4.0) clickCandidate = false; // c'est un glisser
+            }
+            if (!leftDown && wasLeftDown && clickCandidate) {
+                doPick = true;
+                pickX = mx;
+                pickY = my;
+                clickCandidate = false;
+            }
+            wasLeftDown = leftDown;
 
             if (leftDown && !io.WantCaptureMouse) {
                 if (!dragging) { dragging = true; lastMouseX = mx; lastMouseY = my; }
@@ -249,6 +288,34 @@ int main() {
             glm::mat4 planetModel = glm::rotate(glm::mat4(1.0f),
                 static_cast<float>(now) * 0.03f, glm::vec3(0.0f, 1.0f, 0.0f));
 
+            // --- Picking : ray-sphere depuis le curseur ---
+            if (doPick) {
+                float ndcX = static_cast<float>(2.0 * pickX / window.width() - 1.0);
+                float ndcY = static_cast<float>(1.0 - 2.0 * pickY / window.height());
+                glm::mat4 invVP = glm::inverse(viewProj);
+                glm::vec4 nearH = invVP * glm::vec4(ndcX, ndcY, -1.0f, 1.0f);
+                glm::vec4 farH = invVP * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
+                glm::vec3 pNear = glm::vec3(nearH) / nearH.w;
+                glm::vec3 pFar = glm::vec3(farH) / farH.w;
+                glm::vec3 rd = glm::normalize(pFar - pNear);
+
+                // Intersection avec la sphere unite centree a l'origine.
+                float b = glm::dot(camPos, rd);
+                float c = glm::dot(camPos, camPos) - 1.0f;
+                float disc = b * b - c;
+                if (disc >= 0.0f) {
+                    float t = -b - std::sqrt(disc);
+                    if (t < 0.0f) t = -b + std::sqrt(disc);
+                    if (t >= 0.0f) {
+                        glm::vec3 hit = camPos + t * rd;
+                        // Retour en espace modele (rotation inverse = transposee).
+                        glm::vec3 modelDir =
+                            glm::transpose(glm::mat3(planetModel)) * hit;
+                        provinces.pick(modelDir, selectedProvince, selectedCiv);
+                    }
+                }
+            }
+
             // --- Rendu ---
             glClearColor(0.01f, 0.01f, 0.03f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -277,6 +344,7 @@ int main() {
                 overlayShader.setMat4("uViewProj", viewProj);
                 overlayShader.setVec3("uSunDir", sunDir);
                 overlayShader.setFloat("uAlpha", 0.55f);
+                overlayShader.setFloat("uSelected", static_cast<float>(selectedProvince));
                 provinces.draw();
                 glDisable(GL_BLEND);
                 glDepthMask(GL_TRUE);
@@ -306,7 +374,8 @@ int main() {
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
-            drawUI(clock, layers, camera, planet, provinces, fps);
+            drawUI(clock, layers, camera, planet, provinces,
+                   selectedProvince, selectedCiv, fps);
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 

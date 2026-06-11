@@ -71,21 +71,21 @@ void ProvinceMap::build(const PlanetMesh& planet, const Params& params) {
     float seedAngle = static_cast<float>(params.seed) * 0.0011f;
 
     // Graines de provinces et capitales de civilisations.
-    std::vector<glm::vec3> provinceSeeds = fibonacciSphere(params.provinces, seedAngle);
+    m_provinceSeeds = fibonacciSphere(params.provinces, seedAngle);
     std::vector<glm::vec3> civCapitals = fibonacciSphere(params.civs, seedAngle + 1.3f);
 
     // Couleur par civilisation (teinte repartie sur la roue chromatique).
-    std::vector<glm::vec3> civColors(params.civs);
+    m_civColors.resize(params.civs);
     for (int c = 0; c < params.civs; ++c) {
         float h = static_cast<float>(c) / static_cast<float>(params.civs);
-        civColors[c] = hsv2rgb(h, 0.55f, 0.85f);
+        m_civColors[c] = hsv2rgb(h, 0.55f, 0.85f);
     }
 
     // Chaque province appartient a la civilisation dont la capitale est la plus
     // proche -> nations contigues.
-    std::vector<int> provinceCiv(params.provinces);
+    m_provinceCiv.resize(params.provinces);
     for (int p = 0; p < params.provinces; ++p) {
-        provinceCiv[p] = nearestSeed(provinceSeeds[p], civCapitals);
+        m_provinceCiv[p] = nearestSeed(m_provinceSeeds[p], civCapitals);
     }
 
     // Assignation de chaque sommet du globe a sa province -> couleur de civ.
@@ -94,12 +94,13 @@ void ProvinceMap::build(const PlanetMesh& planet, const Params& params) {
     const auto& indices = planet.indices();
 
     std::vector<float> buffer;
-    buffer.reserve(dirs.size() * 6); // pos(3) + color(3)
+    buffer.reserve(dirs.size() * 7); // pos(3) + color(3) + provinceId(1)
     for (size_t i = 0; i < dirs.size(); ++i) {
-        int prov = nearestSeed(dirs[i], provinceSeeds);
-        glm::vec3 color = civColors[provinceCiv[prov]];
+        int prov = nearestSeed(dirs[i], m_provinceSeeds);
+        glm::vec3 color = m_civColors[m_provinceCiv[prov]];
         glm::vec3 p = positions[i] * 1.002f; // legerement au-dessus du terrain
-        buffer.insert(buffer.end(), {p.x, p.y, p.z, color.r, color.g, color.b});
+        buffer.insert(buffer.end(), {p.x, p.y, p.z, color.r, color.g, color.b,
+                                     static_cast<float>(prov)});
     }
 
     m_indexCount = static_cast<int>(indices.size());
@@ -117,13 +118,30 @@ void ProvinceMap::build(const PlanetMesh& planet, const Params& params) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t),
                  indices.data(), GL_STATIC_DRAW);
 
-    const GLsizei stride = 6 * sizeof(float);
+    const GLsizei stride = 7 * sizeof(float);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
     glBindVertexArray(0);
+}
+
+void ProvinceMap::pick(const glm::vec3& dir, int& province, int& civ) const {
+    province = nearestSeed(glm::normalize(dir), m_provinceSeeds);
+    civ = m_provinceCiv[province];
+}
+
+glm::vec3 ProvinceMap::civColor(int civ) const {
+    if (civ < 0 || civ >= static_cast<int>(m_civColors.size())) return glm::vec3(1.0f);
+    return m_civColors[civ];
+}
+
+int ProvinceMap::provinceCiv(int province) const {
+    if (province < 0 || province >= static_cast<int>(m_provinceCiv.size())) return -1;
+    return m_provinceCiv[province];
 }
 
 void ProvinceMap::draw() const {
