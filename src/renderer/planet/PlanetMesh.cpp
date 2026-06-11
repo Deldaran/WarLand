@@ -148,6 +148,12 @@ void PlanetMesh::generate(const Params& params) {
     m_vertexCount = static_cast<int>(vertices.size());
     m_indexCount = static_cast<int>(indices.size());
 
+    // Conservation de la geometrie CPU pour les couches de surface.
+    m_dirs = std::move(dirs);
+    m_indices = indices;
+    m_positions.resize(vertices.size());
+    for (size_t i = 0; i < vertices.size(); ++i) m_positions[i] = vertices[i].pos;
+
     // --- 6. Upload OpenGL ---
     glGenVertexArrays(1, &m_vao);
     glGenBuffers(1, &m_vbo);

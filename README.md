@@ -225,8 +225,16 @@ cmake --build build
 - **Shader d'atmosphère** : halo additif autour du limbe, plus lumineux côté soleil — [atmosphere.frag](shaders/atmosphere.frag)
 - Éclairage solaire directionnel avec cycle jour/nuit lent + spéculaire sur les océans
 
-Contrôles : **drag souris** = orbite caméra · **molette** = zoom (jusqu'au sol).
+### Phase 2 — Overlay politique ✅ (en cours)
+- **Découpage en provinces** par Voronoï sphérique (graines réparties via spirale de Fibonacci) — [ProvinceMap](src/renderer/overlay/ProvinceMap.h)
+- **Regroupement en civilisations** : chaque province appartient à la capitale la plus proche → nations contiguës, couleur distincte par civ (roue chromatique HSV)
+- **Couche politique** rendue en overlay translucide posé sur le terrain, avec facettes nettes (`flat` shading) — [overlay.frag](shaders/overlay.frag)
+- Activable via la case **Politique** du panneau Filtres ; le panneau Contexte affiche le nombre de provinces et de civilisations
 
-## Prochaine étape — Phase 2
+Contrôles : **drag souris** = orbite caméra · **molette** = zoom (jusqu'au sol) · case **Politique** = afficher/masquer les nations.
 
-Overlay 2D sur la planète : projection lat/lon → écran, frontières et polygones de provinces sur la sphère, rendu instancié des icônes de carte, couches activables via le panneau Filtres. Voir [renderer/overlay/](src/renderer/) dans la structure ci-dessus.
+## Prochaine étape — Phase 2b / 3
+
+- **Picking** : sélectionner une province au clic (ray-sphere → province la plus proche) et l'afficher dans le panneau Contexte.
+- **Frontières nettes** : lignes de frontière entre civilisations (arêtes partagées par deux provinces différentes).
+- **Phase 3 — Simulation** : ECS EnTT, système de temps à ticks, économie/diplomatie de base par province. Voir [simulation/](src/) dans la structure.

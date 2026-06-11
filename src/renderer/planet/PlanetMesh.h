@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
+#include <glm/glm.hpp>
 
 namespace wl {
 
@@ -30,6 +32,12 @@ public:
     int triangleCount() const { return m_indexCount / 3; }
     int vertexCount() const { return m_vertexCount; }
 
+    // Geometrie CPU conservee pour les couches qui se posent sur la surface
+    // (overlay des provinces, frontieres, icones...).
+    const std::vector<glm::vec3>& directions() const { return m_dirs; }   // unitaires
+    const std::vector<glm::vec3>& positions() const { return m_positions; } // avec relief
+    const std::vector<uint32_t>& indices() const { return m_indices; }
+
 private:
     void generate(const Params& params);
 
@@ -38,6 +46,10 @@ private:
     unsigned int m_ebo = 0;
     int m_indexCount = 0;
     int m_vertexCount = 0;
+
+    std::vector<glm::vec3> m_dirs;
+    std::vector<glm::vec3> m_positions;
+    std::vector<uint32_t> m_indices;
 };
 
 } // namespace wl

@@ -16,6 +16,7 @@
 #include "renderer/Shader.h"
 #include "renderer/Camera.h"
 #include "renderer/planet/PlanetMesh.h"
+#include "renderer/overlay/ProvinceMap.h"
 
 #include <iostream>
 #include <string>
@@ -32,6 +33,17 @@ double g_scrollDelta = 0.0;
 void scrollCallback(GLFWwindow*, double /*xoffset*/, double yoffset) {
     g_scrollDelta += yoffset;
 }
+
+// Couches de visualisation activables (panneau Filtres).
+struct LayerState {
+    bool politique = true;
+    bool economie = false;
+    bool population = false;
+    bool climat = false;
+    bool religion = false;
+    bool langue = false;
+    bool conflits = false;
+};
 
 // Etat de simulation factice pour faire vivre l'UI en attendant la Phase 3.
 struct SimClock {
@@ -50,7 +62,8 @@ struct SimClock {
     }
 };
 
-void drawUI(SimClock& clock, const wl::Camera& cam, const wl::PlanetMesh& planet, double fps) {
+void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
+            const wl::PlanetMesh& planet, const wl::ProvinceMap& provinces, double fps) {
     ImGuiViewport* vp = ImGui::GetMainViewport();
 
     // --- Barre superieure : date, vitesse, stabilite, alertes ---
@@ -85,10 +98,16 @@ void drawUI(SimClock& clock, const wl::Camera& cam, const wl::PlanetMesh& planet
     ImGui::SetNextWindowSize(ImVec2(220, 320), ImGuiCond_FirstUseEver);
     ImGui::Begin("Filtres");
     {
-        static bool f[7] = {true, false, false, false, false, false, false};
-        const char* layers[] = {"Politique", "Economie", "Population",
-                                 "Climat", "Religion", "Langue", "Conflits"};
-        for (int i = 0; i < 7; ++i) ImGui::Checkbox(layers[i], &f[i]);
+        ImGui::Checkbox("Politique", &layers.politique);
+        ImGui::Checkbox("Economie", &layers.economie);
+        ImGui::Checkbox("Population", &layers.population);
+        ImGui::Checkbox("Climat", &layers.climat);
+        ImGui::Checkbox("Religion", &layers.religion);
+        ImGui::Checkbox("Langue", &layers.langue);
+        ImGui::Checkbox("Conflits", &layers.conflits);
+        ImGui::Separator();
+        ImGui::TextDisabled("Seule la couche Politique");
+        ImGui::TextDisabled("est rendue (Phase 2).");
     }
     ImGui::End();
 
@@ -103,6 +122,8 @@ void drawUI(SimClock& clock, const wl::Camera& cam, const wl::PlanetMesh& planet
         ImGui::Text("Planete");
         ImGui::BulletText("%d triangles", planet.triangleCount());
         ImGui::BulletText("%d sommets", planet.vertexCount());
+        ImGui::BulletText("%d provinces", provinces.provinceCount());
+        ImGui::BulletText("%d civilisations", provinces.civCount());
         ImGui::Separator();
         glm::vec3 p = cam.position();
         ImGui::Text("Camera: %.2f, %.2f, %.2f", p.x, p.y, p.z);
@@ -116,7 +137,7 @@ void drawUI(SimClock& clock, const wl::Camera& cam, const wl::PlanetMesh& planet
                             ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(vp->WorkSize.x, 80), ImGuiCond_FirstUseEver);
     ImGui::Begin("Timeline des evenements");
-    ImGui::TextDisabled("(Phase 1 - les evenements de simulation apparaitront ici)");
+    ImGui::TextDisabled("(Phase 2 - les evenements de simulation apparaitront ici)");
     ImGui::End();
 }
 
@@ -124,7 +145,7 @@ void drawUI(SimClock& clock, const wl::Camera& cam, const wl::PlanetMesh& planet
 
 int main() {
     try {
-        wl::Window window(1600, 900, "WarLand - Phase 1");
+        wl::Window window(1600, 900, "WarLand - Phase 2");
         glfwSetScrollCallback(window.handle(), scrollCallback);
 
         // --- Setup ImGui ---
@@ -138,10 +159,13 @@ int main() {
         const std::string assets = WARLAND_ASSETS_DIR;
         wl::Shader planetShader;
         wl::Shader atmoShader;
+        wl::Shader overlayShader;
         if (!planetShader.loadFromFiles(assets + "/shaders/planet.vert",
                                         assets + "/shaders/planet.frag") ||
             !atmoShader.loadFromFiles(assets + "/shaders/atmosphere.vert",
-                                      assets + "/shaders/atmosphere.frag")) {
+                                      assets + "/shaders/atmosphere.frag") ||
+            !overlayShader.loadFromFiles(assets + "/shaders/overlay.vert",
+                                         assets + "/shaders/overlay.frag")) {
             std::cerr << "[WarLand] Echec du chargement des shaders\n";
             return 1;
         }
@@ -162,8 +186,15 @@ int main() {
         const float atmoScale = 1.18f;
         const glm::vec3 planetCenter(0.0f);
 
+        // Couche politique : decoupage en provinces / civilisations.
+        wl::ProvinceMap::Params provParams;
+        provParams.provinces = 220;
+        provParams.civs = 7;
+        wl::ProvinceMap provinces(planet, provParams);
+
         wl::Camera camera(window.aspectRatio());
         SimClock clock;
+        LayerState layers;
 
         double lastTime = glfwGetTime();
         double lastMouseX = 0, lastMouseY = 0;
@@ -234,7 +265,25 @@ int main() {
             planetShader.setFloat("uSeaLevel", planetParams.seaLevel);
             planet.draw();
 
-            // 2. L'atmosphere (halo additif autour du limbe)
+            // 2. Overlay politique (provinces/civilisations) si la couche est active
+            if (layers.politique) {
+                glEnable(GL_CULL_FACE);
+                glCullFace(GL_BACK);        // seul l'hemisphere visible
+                glDepthMask(GL_FALSE);
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                overlayShader.bind();
+                overlayShader.setMat4("uModel", planetModel);
+                overlayShader.setMat4("uViewProj", viewProj);
+                overlayShader.setVec3("uSunDir", sunDir);
+                overlayShader.setFloat("uAlpha", 0.55f);
+                provinces.draw();
+                glDisable(GL_BLEND);
+                glDepthMask(GL_TRUE);
+                glDisable(GL_CULL_FACE);
+            }
+
+            // 3. L'atmosphere (halo additif autour du limbe)
             glm::mat4 atmoModel = glm::scale(glm::mat4(1.0f), glm::vec3(atmoScale));
             glEnable(GL_CULL_FACE);
             glCullFace(GL_FRONT);          // on rend la face interne lointaine -> halo
@@ -257,7 +306,7 @@ int main() {
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
-            drawUI(clock, camera, planet, fps);
+            drawUI(clock, layers, camera, planet, provinces, fps);
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
