@@ -152,7 +152,11 @@ void PlanetMesh::generate(const Params& params) {
     m_dirs = std::move(dirs);
     m_indices = indices;
     m_positions.resize(vertices.size());
-    for (size_t i = 0; i < vertices.size(); ++i) m_positions[i] = vertices[i].pos;
+    m_elevations.resize(vertices.size());
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        m_positions[i] = vertices[i].pos;
+        m_elevations[i] = vertices[i].elevation;
+    }
 
     // --- 6. Upload OpenGL ---
     glGenVertexArrays(1, &m_vao);

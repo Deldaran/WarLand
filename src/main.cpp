@@ -17,10 +17,14 @@
 #include "renderer/Camera.h"
 #include "renderer/planet/PlanetMesh.h"
 #include "renderer/overlay/ProvinceMap.h"
+#include "simulation/SimulationWorld.h"
 
 #include <iostream>
 #include <string>
+#include <vector>
 #include <cmath>
+#include <cstdio>
+#include <algorithm>
 
 #ifndef WARLAND_ASSETS_DIR
 #define WARLAND_ASSETS_DIR "."
@@ -45,25 +49,51 @@ struct LayerState {
     bool conflits = false;
 };
 
-// Etat de simulation factice pour faire vivre l'UI en attendant la Phase 3.
+// Horloge de simulation : pilote la vitesse du temps (barre x1/x5/x10) et
+// renvoie le nombre de jours in-game ecoules a chaque frame.
 struct SimClock {
     bool paused = false;
     int speed = 1;            // x1, x2, x5, x10
-    double accumulated = 0.0; // jours in-game ecoules
+    double accumulated = 0.0; // jours dans l'annee en cours
     int year = -3000;         // age de pierre
 
-    void update(double dt) {
-        if (paused) return;
-        accumulated += dt * speed * 10.0; // 10 jours / s a x1
+    double advance(double dt) {
+        if (paused) return 0.0;
+        double days = dt * speed * 10.0; // 10 jours / s a x1
+        accumulated += days;
         while (accumulated >= 365.0) {
             accumulated -= 365.0;
             ++year;
         }
+        return days;
     }
 };
 
+// Formatage compact des grands nombres (population, stocks).
+std::string formatNumber(double v) {
+    char buf[32];
+    if (v >= 1.0e9)      std::snprintf(buf, sizeof(buf), "%.2f Md", v / 1.0e9);
+    else if (v >= 1.0e6) std::snprintf(buf, sizeof(buf), "%.2f M", v / 1.0e6);
+    else if (v >= 1.0e3) std::snprintf(buf, sizeof(buf), "%.1f k", v / 1.0e3);
+    else                 std::snprintf(buf, sizeof(buf), "%.0f", v);
+    return buf;
+}
+
+// Rampe de couleur pour la heatmap de population (bleu -> rouge).
+glm::vec3 heatColor(float t) {
+    t = std::clamp(t, 0.0f, 1.0f);
+    const glm::vec3 c0(0.10f, 0.15f, 0.45f); // froid / peu peuple
+    const glm::vec3 c1(0.10f, 0.55f, 0.55f);
+    const glm::vec3 c2(0.85f, 0.80f, 0.20f);
+    const glm::vec3 c3(0.85f, 0.20f, 0.15f); // chaud / tres peuple
+    if (t < 0.33f) return glm::mix(c0, c1, t / 0.33f);
+    if (t < 0.66f) return glm::mix(c1, c2, (t - 0.33f) / 0.33f);
+    return glm::mix(c2, c3, (t - 0.66f) / 0.34f);
+}
+
 void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
             const wl::PlanetMesh& planet, const wl::ProvinceMap& provinces,
+            const wl::SimulationWorld& sim,
             int selectedProvince, int selectedCiv, double fps) {
     ImGuiViewport* vp = ImGui::GetMainViewport();
 
@@ -86,9 +116,15 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
             if (active) ImGui::PopStyleColor();
         }
         ImGui::SameLine(0, 40);
-        ImGui::Text("Stabilite globale: 72%%");
+        double stab = sim.stability() * 100.0;
+        ImVec4 stabCol = stab > 75 ? ImVec4(0.4f, 0.9f, 0.4f, 1)
+                       : stab > 50 ? ImVec4(0.9f, 0.8f, 0.3f, 1)
+                                   : ImVec4(0.95f, 0.4f, 0.3f, 1);
+        ImGui::Text("Stabilite:");
+        ImGui::SameLine();
+        ImGui::TextColored(stabCol, "%.0f%%", stab);
         ImGui::SameLine(0, 40);
-        ImGui::TextColored(ImVec4(1, 0.6f, 0.2f, 1), "Alertes: 0");
+        ImGui::Text("Population: %s", formatNumber(sim.totalPopulation()).c_str());
         ImGui::SameLine(0, 40);
         ImGui::Text("%.0f FPS", fps);
     }
@@ -107,8 +143,8 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
         ImGui::Checkbox("Langue", &layers.langue);
         ImGui::Checkbox("Conflits", &layers.conflits);
         ImGui::Separator();
-        ImGui::TextDisabled("Seule la couche Politique");
-        ImGui::TextDisabled("est rendue (Phase 2).");
+        ImGui::TextDisabled("Couches rendues : Politique");
+        ImGui::TextDisabled("et Population (heatmap).");
     }
     ImGui::End();
 
@@ -126,6 +162,26 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
             ImGui::ColorButton("##civ", ImVec4(col.r, col.g, col.b, 1.0f),
                 ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoPicker,
                 ImVec2(16, 16));
+
+            wl::SimulationWorld::ProvinceState st = sim.state(selectedProvince);
+            if (st.valid) {
+                ImGui::Spacing();
+                ImGui::Text("Biome : %s", wl::SimulationWorld::biomeName(st.biome));
+                if (st.ocean) {
+                    ImGui::TextDisabled("Province oceanique (inhabitee)");
+                } else {
+                    ImGui::Text("Population : %s", formatNumber(st.population).c_str());
+                    if (st.foodBalance >= 0.0)
+                        ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1), "Nourriture : surplus");
+                    else
+                        ImGui::TextColored(ImVec4(0.95f, 0.4f, 0.3f, 1), "Nourriture : FAMINE");
+                    ImGui::Separator();
+                    ImGui::Text("Stocks");
+                    ImGui::BulletText("Nourriture : %s", formatNumber(st.food).c_str());
+                    ImGui::BulletText("Materiaux  : %s", formatNumber(st.materials).c_str());
+                    ImGui::BulletText("Energie    : %s", formatNumber(st.energy).c_str());
+                }
+            }
         } else {
             ImGui::TextDisabled("Clic gauche sur une province");
             ImGui::TextDisabled("pour la selectionner");
@@ -149,7 +205,7 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
                             ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(vp->WorkSize.x, 80), ImGuiCond_FirstUseEver);
     ImGui::Begin("Timeline des evenements");
-    ImGui::TextDisabled("(Phase 2 - les evenements de simulation apparaitront ici)");
+    ImGui::TextDisabled("(Phase 3 - simulation vivante : population pilotee par la nourriture)");
     ImGui::End();
 }
 
@@ -157,7 +213,7 @@ void drawUI(SimClock& clock, LayerState& layers, const wl::Camera& cam,
 
 int main() {
     try {
-        wl::Window window(1600, 900, "WarLand - Phase 2");
+        wl::Window window(1600, 900, "WarLand - Phase 3");
         glfwSetScrollCallback(window.handle(), scrollCallback);
 
         // --- Setup ImGui ---
@@ -204,9 +260,19 @@ int main() {
         provParams.civs = 7;
         wl::ProvinceMap provinces(planet, provParams);
 
+        // Simulation : une entite ECS par province (population, ressources...).
+        wl::SimulationWorld sim;
+        sim.init(provinces, planetParams.seaLevel);
+
         wl::Camera camera(window.aspectRatio());
         SimClock clock;
         LayerState layers;
+
+        // Gestion de la couche overlay (politique ou heatmap de population).
+        enum class OverlayMode { None, Political, Population };
+        OverlayMode overlayMode = OverlayMode::Political;
+        double heatTimer = 0.0;
+        std::vector<glm::vec3> heatColors(provinces.provinceCount());
 
         double lastTime = glfwGetTime();
         double lastMouseX = 0, lastMouseY = 0;
@@ -271,7 +337,36 @@ int main() {
             }
             g_scrollDelta = 0.0;
 
-            clock.update(dt);
+            // --- Avancee de la simulation ---
+            double simDays = clock.advance(dt);
+            sim.tick(simDays);
+
+            // --- Coloration de l'overlay selon la couche active ---
+            OverlayMode desired = layers.population ? OverlayMode::Population
+                                : layers.politique  ? OverlayMode::Political
+                                                    : OverlayMode::None;
+            if (desired == OverlayMode::Political && overlayMode != OverlayMode::Political) {
+                provinces.applyPoliticalColors();
+            }
+            if (desired == OverlayMode::Population) {
+                heatTimer += dt;
+                if (overlayMode != OverlayMode::Population || heatTimer >= 0.35) {
+                    double maxP = sim.maxProvincePopulation();
+                    for (int p = 0; p < provinces.provinceCount(); ++p) {
+                        auto st = sim.state(p);
+                        if (st.ocean) {
+                            heatColors[p] = glm::vec3(0.04f, 0.07f, 0.14f);
+                        } else {
+                            float t = maxP > 0.0
+                                ? static_cast<float>(std::sqrt(st.population / maxP)) : 0.0f;
+                            heatColors[p] = heatColor(t);
+                        }
+                    }
+                    provinces.setProvinceColors(heatColors);
+                    heatTimer = 0.0;
+                }
+            }
+            overlayMode = desired;
 
             // --- Matrices et soleil ---
             glm::mat4 view = camera.viewMatrix();
@@ -332,8 +427,8 @@ int main() {
             planetShader.setFloat("uSeaLevel", planetParams.seaLevel);
             planet.draw();
 
-            // 2. Overlay politique (provinces/civilisations) si la couche est active
-            if (layers.politique) {
+            // 2. Overlay (politique ou heatmap population) si une couche est active
+            if (overlayMode != OverlayMode::None) {
                 glEnable(GL_CULL_FACE);
                 glCullFace(GL_BACK);        // seul l'hemisphere visible
                 glDepthMask(GL_FALSE);
@@ -374,7 +469,7 @@ int main() {
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
-            drawUI(clock, layers, camera, planet, provinces,
+            drawUI(clock, layers, camera, planet, provinces, sim,
                    selectedProvince, selectedCiv, fps);
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

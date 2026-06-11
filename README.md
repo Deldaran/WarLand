@@ -231,10 +231,22 @@ cmake --build build
 - **Couche politique** rendue en overlay translucide posé sur le terrain, avec facettes nettes (`flat` shading) — [overlay.frag](shaders/overlay.frag)
 - Activable via la case **Politique** du panneau Filtres ; le panneau Contexte affiche le nombre de provinces et de civilisations
 
-Contrôles : **drag souris** = orbite caméra · **molette** = zoom (jusqu'au sol) · case **Politique** = afficher/masquer les nations.
+Contrôles : **drag souris** = orbite caméra · **molette** = zoom (jusqu'au sol) · case **Politique** = afficher/masquer les nations · **clic gauche** sur une province = la sélectionner.
 
-## Prochaine étape — Phase 2b / 3
+### Phase 3 — Simulation vivante ✅
+- **ECS EnTT** : une entité par province avec composants `CProvince`, `CPopulation`, `CStock` — [Components](src/simulation/Components.h), [SimulationWorld](src/simulation/SimulationWorld.h)
+- **Biomes** dérivés de l'élévation + latitude moyennes de chaque province (océan, désert, prairie, forêt, toundra, montagne, polaire)
+- **TimeSystem** branché sur la barre x1/x5/x10 : `SimClock::advance()` renvoie les jours in-game, `SimulationWorld::tick()` les applique
+- **Dynamique de population pilotée par la nourriture** : production `= rendement_biome × √pop` (→ capacité de charge naturelle), consommation `= pop × besoin`. Surplus → croissance, stock épuisé → **famine** et déclin
+- **3 ressources vivantes** : nourriture (moteur démographique), matériaux et énergie (extraction vs entretien)
+- **Heatmap de population** : couche **Population** recolorant le globe (bleu = peu peuplé → rouge = dense), rafraîchie en continu
+- Panneau **Contexte** : biome, population, état alimentaire et stocks **live** de la province sélectionnée ; barre supérieure : **stabilité** et **population mondiale** réelles
 
-- **Picking** : sélectionner une province au clic (ray-sphere → province la plus proche) et l'afficher dans le panneau Contexte.
-- **Frontières nettes** : lignes de frontière entre civilisations (arêtes partagées par deux provinces différentes).
-- **Phase 3 — Simulation** : ECS EnTT, système de temps à ticks, économie/diplomatie de base par province. Voir [simulation/](src/) dans la structure.
+La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/SimulationWorld.cpp) ne touche jamais à OpenGL) — prête pour un passage multi-thread ultérieur.
+
+## Prochaine étape — Phase 3b / 4
+
+- **Chocs et événements** : sécheresses, épidémies → famines visibles, timeline qui se remplit.
+- **Migration & commerce** entre provinces voisines (les surplus se déplacent vers les pénuries).
+- **Frontières nettes** entre civilisations + couches Économie/Climat.
+- **Multi-thread** : déplacer la simulation sur son propre thread (double buffer) comme prévu dans l'architecture.

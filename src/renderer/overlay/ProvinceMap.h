@@ -40,8 +40,20 @@ public:
     glm::vec3 civColor(int civ) const;
     int provinceCiv(int province) const;
 
+    // Donnees geographiques par province (pour initialiser la simulation).
+    float provinceElevation(int province) const; // [-1,1] moyenne
+    float provinceLatitude(int province) const;   // 0 equateur -> 1 pole
+
+    // Recolore l'overlay a partir d'une couleur par province (heatmap, etc.).
+    // Re-uploade le VBO ; a appeler quand les donnees changent, pas chaque frame.
+    void setProvinceColors(const std::vector<glm::vec3>& provinceColors);
+
+    // Restaure la coloration politique (couleur de civilisation).
+    void applyPoliticalColors();
+
 private:
     void build(const PlanetMesh& planet, const Params& params);
+    void uploadInterleaved(const std::vector<glm::vec3>& vertexColors);
 
     unsigned int m_vao = 0;
     unsigned int m_vbo = 0;
@@ -53,6 +65,12 @@ private:
     std::vector<glm::vec3> m_provinceSeeds;
     std::vector<int> m_provinceCiv;
     std::vector<glm::vec3> m_civColors;
+    std::vector<float> m_provinceElevation;
+    std::vector<float> m_provinceLatitude;
+
+    // Conserves pour la recoloration dynamique.
+    std::vector<int> m_vertexProvince;
+    std::vector<glm::vec3> m_overlayPositions; // positions deja surelevees
 };
 
 } // namespace wl
