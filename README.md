@@ -285,8 +285,13 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - Échelle de temps accélérée (40 j/s à x1) pour voir les empires croître ; panneau Diplomatie : population, **nb de provinces** et ère par civ
 - *Validé : de 7 provinces (capitales) à 58/97 colonisées en ~12 ans simulés*
 
-## Prochaine étape — Phase 10+
+### Phase 10 — Cohésion & révoltes ✅
+- **Expansion ralentie et proportionnelle** : constantes de colonisation/conquête réduites (~2,5×) et **usure impériale renforcée** (`1/(1+0.08·n)`) → les avancées sont réalistes par rapport à la taille de l'empire
+- **Instabilité** : chaque province subit une pression de révolte croissant avec la **taille de l'empire** (`0.05·nbProvinces/jour`) et la **famine** ; si l'emprise tombe à 0 sans conquérant, la province **se révolte et redevient sauvage** (loguée dans la timeline)
+- Résultat : les empires **croissent puis plafonnent**, perdent leurs provinces périphériques mal tenues, et le monde garde des terres sauvages — *validé : ~27/97 colonisées à 10 ans, ~56/97 à 32 ans, tailles variées 3–14*
+
+## Prochaine étape — Phase 11+
 
 - **Cultures & langues** comme barrières au commerce et à la diplomatie.
-- **Capitales & cohésion** : distance à la capitale, révoltes des provinces mal contrôlées.
+- **Naissance de nouvelles civilisations** depuis des terres sauvages très peuplées.
 - **Multi-planètes** et endgame spatial — cf. [GamePlan.md](GamePlan.md).

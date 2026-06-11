@@ -260,13 +260,19 @@ void SimulationWorld::tickExpansion(double days, int year) {
     if (m_civCount < 1) return;
     const size_t n = m_byProvince.size();
 
-    // Constantes d'expansion (calibrees pour une expansion visible mais graduelle).
-    constexpr double kBaseRegen = 0.6;   // regain d'emprise du proprietaire / jour
-    constexpr double kFriendly  = 0.002; // soutien des provinces alliees voisines
-    constexpr double kHostile   = 0.0011; // erosion par les ennemis (guerre)
-    constexpr double kColonize  = 0.0011; // progression de la colonisation
+    // Constantes d'expansion (calibrees pour une expansion lente et graduelle,
+    // proportionnelle a la force reelle et freinee par l'usure imperiale).
+    constexpr double kBaseRegen = 0.5;    // regain d'emprise du proprietaire / jour
+    constexpr double kFriendly  = 0.0015; // soutien des provinces alliees voisines
+    constexpr double kHostile   = 0.0004; // erosion par les ennemis (guerre)
+    constexpr double kColonize  = 0.00030; // progression de la colonisation
+    // Cohesion (Phase 10) : un empire trop grand ou affame se desagrege.
+    constexpr double kUnrestPerProv = 0.05; // instabilite par province possedee / jour
+    constexpr double kFamineUnrest  = 0.6;  // une famine attise la revolte
 
     // Passe 1 : force projetee par chaque province (population, techno, usure).
+    // L'usure imperiale (1/(1+0.08*n)) penalise fortement les grands empires :
+    // les avancees restent proportionnelles a la taille reelle.
     std::vector<double> strength(n, 0.0);
     for (size_t p = 0; p < n; ++p) {
         entt::entity e = m_byProvince[p];
@@ -275,23 +281,25 @@ void SimulationWorld::tickExpansion(double days, int year) {
         if (pr.ocean || pr.civ < 0) continue;
         double pop = m_registry.get<CPopulation>(e).count;
         double tech = 1.0 + 0.25 * eraForTech(m_civTech[pr.civ]);
-        double overstretch = 1.0 / (1.0 + 0.04 * m_civProvinceCount[pr.civ]); // usure imperiale
+        double overstretch = 1.0 / (1.0 + 0.08 * m_civProvinceCount[pr.civ]); // usure imperiale
         strength[p] = std::sqrt(std::max(0.0, pop)) * tech * overstretch * (pr.control / 100.0);
     }
 
     // Passe 2 : calcul des changements d'emprise / d'appartenance.
-    struct Change { int owner; double control; int contender; bool flip; };
+    // flip : 0 = aucun, 1 = conquete, 2 = revolte (retour a l'etat sauvage).
+    struct Change { int owner; double control; int contender; int flip; int oldOwner; };
     std::vector<Change> chg(n);
     std::vector<double> civStr(m_civCount, 0.0);
 
     for (size_t p = 0; p < n; ++p) {
         entt::entity e = m_byProvince[p];
-        if (e == entt::null) { chg[p] = {-1, 0.0, -1, false}; continue; }
+        if (e == entt::null) { chg[p] = {-1, 0.0, -1, 0, -1}; continue; }
         const CProvince& pr = m_registry.get<CProvince>(e);
-        if (pr.ocean) { chg[p] = {pr.civ, pr.control, pr.contender, false}; continue; }
+        if (pr.ocean) { chg[p] = {pr.civ, pr.control, pr.contender, 0, pr.civ}; continue; }
 
         int ownerN = pr.civ;
         double controlN = pr.control;
+        double foodBalanceN = m_registry.get<CPopulation>(e).lastFoodBalance;
 
         // Force de chaque civ voisine.
         std::fill(civStr.begin(), civStr.end(), 0.0);
@@ -313,14 +321,26 @@ void SimulationWorld::tickExpansion(double days, int year) {
         }
         double hostile = best;
 
-        Change ch{ownerN, controlN, contender, false};
+        Change ch{ownerN, controlN, contender, 0, ownerN};
         if (ownerN >= 0) {
-            double dc = (kBaseRegen + friendly * kFriendly - hostile * kHostile) * days;
+            // Instabilite : croit avec la taille de l'empire et la famine.
+            double unrest = kUnrestPerProv * m_civProvinceCount[ownerN];
+            if (foodBalanceN < 0.0) unrest += kFamineUnrest;
+
+            double dc = (kBaseRegen + friendly * kFriendly
+                         - hostile * kHostile - unrest) * days;
             ch.control = std::clamp(controlN + dc, 0.0, 100.0);
-            if (ch.control <= 0.0 && contender >= 0) {
-                ch.owner = contender;     // province conquise
-                ch.control = 15.0;
-                ch.flip = true;
+            if (ch.control <= 0.0) {
+                if (contender >= 0) {
+                    ch.owner = contender;     // province conquise
+                    ch.control = 15.0;
+                    ch.flip = 1;
+                } else {
+                    ch.owner = -1;            // revolte -> redevient sauvage
+                    ch.control = 0.0;
+                    ch.contender = -1;
+                    ch.flip = 2;
+                }
             }
         } else {
             if (contender >= 0) {
@@ -334,17 +354,20 @@ void SimulationWorld::tickExpansion(double days, int year) {
         chg[p] = ch;
     }
 
-    // Application + journalisation des conquetes (les colonisations sont trop
-    // frequentes pour etre toutes loguees).
+    // Application + journalisation des conquetes et revoltes (les colonisations
+    // sont trop frequentes pour etre toutes loguees).
     for (size_t p = 0; p < n; ++p) {
         entt::entity e = m_byProvince[p];
         if (e == entt::null) continue;
         CProvince& pr = m_registry.get<CProvince>(e);
         if (pr.ocean) continue;
-        if (chg[p].flip) {
+        if (chg[p].flip == 1) {
             logEvent(year, "Conquete : civ " + std::to_string(chg[p].owner)
                      + " prend la province #" + std::to_string(pr.id)
-                     + " a civ " + std::to_string(pr.civ), 2);
+                     + " a civ " + std::to_string(chg[p].oldOwner), 2);
+        } else if (chg[p].flip == 2) {
+            logEvent(year, "Revolte : la province #" + std::to_string(pr.id)
+                     + " se separe de civ " + std::to_string(chg[p].oldOwner), 1);
         }
         pr.civ = chg[p].owner;
         pr.control = chg[p].control;
