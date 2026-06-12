@@ -6,6 +6,7 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <memory>
 
 namespace wl {
 
@@ -38,9 +39,12 @@ public:
 
     ~SimulationRunner();
 
-    // Initialise le monde (thread de rendu) puis lance le thread de simulation.
-    void start(const ProvinceMap& provinces, float seaLevel = 0.0f);
+    // Initialise un monde par planete (thread de rendu) puis lance le thread de
+    // simulation qui les fait tous evoluer en parallele.
+    void start(const std::vector<const ProvinceMap*>& planets, float seaLevel = 0.0f);
     void stop();
+
+    int planetCount() const { return static_cast<int>(m_worlds.size()); }
 
     // Controles (thread-safe via atomiques).
     void setPaused(bool p) { m_paused.store(p); }
@@ -48,17 +52,16 @@ public:
     bool paused() const { return m_paused.load(); }
     int speed() const { return m_speed.load(); }
 
-    // Cote rendu : copie du dernier instantane publie.
-    Snapshot snapshot() const;
+    // Cote rendu : copie du dernier instantane publie de la planete `planet`.
+    Snapshot snapshot(int planet) const;
 
-    // Sauvegarde / chargement : la requete est executee par le thread de
-    // simulation (aucun acces concurrent au monde).
-    void requestSave(const std::string& path);
-    void requestLoad(const std::string& path);
+    // Sauvegarde / chargement de la planete `planet`.
+    void requestSave(int planet, const std::string& path);
+    void requestLoad(int planet, const std::string& path);
 
 private:
     void run();
-    Snapshot buildSnapshot(int year) const;
+    Snapshot buildSnapshot(SimulationWorld& world, int year) const;
 
     enum class IoOp { None, Save, Load };
 
@@ -66,17 +69,18 @@ private:
     double m_dayOfYear = 0.0;
     double m_publishAccum = 0.0;
 
-    SimulationWorld m_world;
+    std::vector<std::unique_ptr<SimulationWorld>> m_worlds;
     std::thread m_thread;
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_paused{false};
     std::atomic<int> m_speed{1};
 
     mutable std::mutex m_mutex;
-    Snapshot m_published;
+    std::vector<Snapshot> m_published;
 
     std::mutex m_ioMutex;
     IoOp m_ioOp = IoOp::None;
+    int m_ioPlanet = 0;
     std::string m_ioPath;
 };
 

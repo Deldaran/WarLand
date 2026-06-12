@@ -106,6 +106,7 @@ glm::vec3 heatColor(float t) {
 void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& snap,
             LayerState& layers, const wl::Camera& cam,
             const wl::PlanetMesh& planet, const wl::ProvinceMap& provinces,
+            int& activePlanet, int planetCount,
             int selectedProvince, int selectedCiv, double fps) {
     ImGuiViewport* vp = ImGui::GetMainViewport();
 
@@ -148,10 +149,18 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
         ImGui::SameLine(0, 40);
         ImGui::Text("Population: %s", formatNumber(snap.totalPopulation).c_str());
         ImGui::SameLine(0, 40);
-        const std::string savePath = std::string(WARLAND_ASSETS_DIR) + "/saves/quicksave.json";
-        if (ImGui::Button("Sauver")) runner.requestSave(savePath);
+        // Selecteur de planete (systeme multi-mondes).
+        ImGui::Text("Monde %d/%d", activePlanet + 1, planetCount);
         ImGui::SameLine();
-        if (ImGui::Button("Charger")) runner.requestLoad(savePath);
+        if (ImGui::Button("<##planet")) activePlanet = (activePlanet + planetCount - 1) % planetCount;
+        ImGui::SameLine();
+        if (ImGui::Button(">##planet")) activePlanet = (activePlanet + 1) % planetCount;
+        ImGui::SameLine(0, 40);
+        const std::string savePath = std::string(WARLAND_ASSETS_DIR) + "/saves/quicksave_P"
+                                     + std::to_string(activePlanet) + ".json";
+        if (ImGui::Button("Sauver")) runner.requestSave(activePlanet, savePath);
+        ImGui::SameLine();
+        if (ImGui::Button("Charger")) runner.requestLoad(activePlanet, savePath);
         ImGui::SameLine(0, 40);
         ImGui::Text("%.0f FPS", fps);
     }
@@ -383,28 +392,38 @@ int main() {
         int cloudTexW = 0, cloudTexH = 0;
         double cloudUploadTimer = 1.0; // force le 1er upload
 
-        // --- Geometrie : la planete + la coque atmospherique ---
-        wl::PlanetMesh::Params planetParams;
-        planetParams.subdivisions = 6;
-        planetParams.seaLevel = 0.0f;
-        planetParams.amplitude = 0.04f;
-        planetParams.seed = 1337u;
-        wl::PlanetMesh planet(planetParams);
-
         wl::PlanetMesh::Params atmoParams;
         atmoParams.subdivisions = 4;
         atmoParams.amplitude = 0.0f; // sphere lisse
         wl::PlanetMesh atmosphere(atmoParams);
 
-        // Couche politique : decoupage en provinces / civilisations.
+        // --- Multi-planetes : un systeme de plusieurs mondes simules en parallele ---
+        const int kNumPlanets = 3;
+        wl::PlanetMesh::Params planetParams;
+        planetParams.subdivisions = 6;
+        planetParams.seaLevel = 0.0f;
+        planetParams.amplitude = 0.04f;
         wl::ProvinceMap::Params provParams;
         provParams.provinces = 900; // provinces fines -> pays de depart petits
         provParams.civs = 10;
-        wl::ProvinceMap provinces(planet, provParams);
 
-        // Simulation sur son propre thread (decouplee du rendu).
+        std::vector<std::unique_ptr<wl::PlanetMesh>> planetMeshes;
+        std::vector<std::unique_ptr<wl::ProvinceMap>> planetProvinces;
+        std::vector<const wl::ProvinceMap*> planetPtrs;
+        for (int i = 0; i < kNumPlanets; ++i) {
+            wl::PlanetMesh::Params pp = planetParams;
+            pp.seed = 1337u + static_cast<uint32_t>(i) * 7919u; // monde different
+            auto mesh = std::make_unique<wl::PlanetMesh>(pp);
+            auto prov = std::make_unique<wl::ProvinceMap>(*mesh, provParams);
+            planetPtrs.push_back(prov.get());
+            planetMeshes.push_back(std::move(mesh));
+            planetProvinces.push_back(std::move(prov));
+        }
+        int activePlanet = 0, prevPlanet = 0;
+
+        // Simulation sur son propre thread (toutes les planetes en parallele).
         wl::SimulationRunner runner;
-        runner.start(provinces, planetParams.seaLevel);
+        runner.start(planetPtrs, planetParams.seaLevel);
 
         wl::Camera camera(window.aspectRatio());
         LayerState layers;
@@ -413,8 +432,8 @@ int main() {
         enum class OverlayMode { None, Political, Population, Culture };
         OverlayMode overlayMode = OverlayMode::None;
         double heatTimer = 0.0;
-        std::vector<glm::vec3> heatColors(provinces.provinceCount());
-        std::vector<int> ownerBuf(provinces.provinceCount(), -2);
+        std::vector<glm::vec3> heatColors(provParams.provinces);
+        std::vector<int> ownerBuf(provParams.provinces, -2);
 
         // Villes (points) et routes (lignes) reconstruites depuis le snapshot.
         GLuint cityVao = 0, cityVbo = 0, roadVao = 0, roadVbo = 0;
@@ -455,6 +474,10 @@ int main() {
 
             window.pollEvents();
             camera.setAspect(window.aspectRatio());
+
+            // Planete active : tout le rendu/picking opere sur ces references.
+            wl::PlanetMesh& planet = *planetMeshes[activePlanet];
+            wl::ProvinceMap& provinces = *planetProvinces[activePlanet];
 
             ImGuiIO& io = ImGui::GetIO();
 
@@ -499,8 +522,17 @@ int main() {
             }
             g_scrollDelta = 0.0;
 
-            // --- Lecture de l'etat simule (snapshot publie par le thread sim) ---
-            wl::SimulationRunner::Snapshot snap = runner.snapshot();
+            // --- Changement de planete : reinitialise selection et overlay ---
+            if (activePlanet != prevPlanet) {
+                prevPlanet = activePlanet;
+                selectedProvince = -1;
+                overlayMode = OverlayMode::None; // force la recoloration
+                heatTimer = 1.0;
+                cityTimer = 1.0;
+            }
+
+            // --- Lecture de l'etat simule (snapshot de la planete active) ---
+            wl::SimulationRunner::Snapshot snap = runner.snapshot(activePlanet);
 
             // --- Coloration de l'overlay selon la couche active ---
             // Politique = appartenance courante (dynamique) ; Population = heatmap.
@@ -801,7 +833,7 @@ int main() {
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
             drawUI(runner, snap, layers, camera, planet, provinces,
-                   selectedProvince, selectedCiv, fps);
+                   activePlanet, kNumPlanets, selectedProvince, selectedCiv, fps);
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 

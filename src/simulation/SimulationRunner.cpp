@@ -10,37 +10,38 @@ SimulationRunner::~SimulationRunner() {
     stop();
 }
 
-SimulationRunner::Snapshot SimulationRunner::buildSnapshot(int year) const {
+SimulationRunner::Snapshot SimulationRunner::buildSnapshot(SimulationWorld& world, int year) const {
     Snapshot snap;
     snap.year = year;
     snap.timeDays = year * 365.0 + m_dayOfYear;
-    snap.totalPopulation = m_world.totalPopulation();
-    snap.stability = m_world.stability();
-    snap.maxProvincePopulation = m_world.maxProvincePopulation();
-    snap.provinces = m_world.allStates();
-    const auto& ev = m_world.events();
+    snap.totalPopulation = world.totalPopulation();
+    snap.stability = world.stability();
+    snap.maxProvincePopulation = world.maxProvincePopulation();
+    snap.provinces = world.allStates();
+    const auto& ev = world.events();
     snap.events.assign(ev.begin(), ev.end());
-    snap.civCount = m_world.civCount();
-    snap.opinion = m_world.opinionMatrix();
-    snap.civPopulation = m_world.civPopulations();
-    snap.civTech = m_world.civTech();
-    snap.civProvinceCount = m_world.civProvinceCounts();
-    snap.cloudW = m_world.climateWidth();
-    snap.cloudH = m_world.climateHeight();
-    snap.cloud = m_world.cloudField();
+    snap.civCount = world.civCount();
+    snap.opinion = world.opinionMatrix();
+    snap.civPopulation = world.civPopulations();
+    snap.civTech = world.civTech();
+    snap.civProvinceCount = world.civProvinceCounts();
+    snap.cloudW = world.climateWidth();
+    snap.cloudH = world.climateHeight();
+    snap.cloud = world.cloudField();
     return snap;
 }
 
-void SimulationRunner::start(const ProvinceMap& provinces, float seaLevel) {
+void SimulationRunner::start(const std::vector<const ProvinceMap*>& planets, float seaLevel) {
     stop();
 
-    // Initialisation sur le thread appelant (ne touche pas OpenGL).
-    m_world.init(provinces, seaLevel);
-
-    // Premier snapshot pour que la premiere frame ait des donnees.
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_published = buildSnapshot(-3000);
+    // Un monde par planete, initialise sur le thread appelant (pas d'OpenGL).
+    m_worlds.clear();
+    m_published.clear();
+    for (const ProvinceMap* pm : planets) {
+        auto world = std::make_unique<SimulationWorld>();
+        world->init(*pm, seaLevel);
+        m_published.push_back(buildSnapshot(*world, -3000));
+        m_worlds.push_back(std::move(world));
     }
 
     m_running.store(true);
@@ -62,22 +63,23 @@ void SimulationRunner::run() {
         double dt = std::chrono::duration<double>(now - last).count();
         last = now;
 
-        // Traitement d'une eventuelle requete de sauvegarde / chargement.
+        // Requete eventuelle de sauvegarde / chargement (sur une planete donnee).
         IoOp op = IoOp::None;
         std::string path;
+        int planet = 0;
         {
             std::lock_guard<std::mutex> lock(m_ioMutex);
             op = m_ioOp;
             path = m_ioPath;
+            planet = m_ioPlanet;
             m_ioOp = IoOp::None;
         }
-        if (op == IoOp::Save) {
-            m_world.saveToFile(path, m_year);
-        } else if (op == IoOp::Load) {
-            int y = m_year;
-            if (m_world.loadFromFile(path, y)) {
-                m_year = y;
-                m_dayOfYear = 0.0;
+        if (planet >= 0 && planet < static_cast<int>(m_worlds.size())) {
+            if (op == IoOp::Save) {
+                m_worlds[planet]->saveToFile(path, m_year);
+            } else if (op == IoOp::Load) {
+                int y = m_year;
+                if (m_worlds[planet]->loadFromFile(path, y)) m_year = y;
             }
         }
 
@@ -88,39 +90,42 @@ void SimulationRunner::run() {
                 m_dayOfYear -= 365.0;
                 ++m_year;
             }
-            m_world.tick(days, m_year, m_year * 365.0 + m_dayOfYear);
+            double timeDays = m_year * 365.0 + m_dayOfYear;
+            for (auto& w : m_worlds) w->tick(days, m_year, timeDays); // toutes les planetes
         }
 
-        // Publication de l'instantane throttlee a ~30 Hz : inutile de
-        // reconstruire/copier 900 provinces a 100 Hz (le rendu n'en a pas besoin),
-        // ca reduit la charge CPU et la contention avec le thread de rendu.
+        // Publication throttlee a ~30 Hz (tous les mondes).
         m_publishAccum += dt;
         if (m_publishAccum >= 0.033) {
             m_publishAccum = 0.0;
-            Snapshot snap = buildSnapshot(m_year);
+            std::vector<Snapshot> snaps;
+            snaps.reserve(m_worlds.size());
+            for (auto& w : m_worlds) snaps.push_back(buildSnapshot(*w, m_year));
             std::lock_guard<std::mutex> lock(m_mutex);
-            m_published = std::move(snap);
+            m_published = std::move(snaps);
         }
 
-        // Cadence de simulation ~100 Hz (le dt mesure garde le temps reel exact).
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 
-SimulationRunner::Snapshot SimulationRunner::snapshot() const {
+SimulationRunner::Snapshot SimulationRunner::snapshot(int planet) const {
     std::lock_guard<std::mutex> lock(m_mutex);
-    return m_published;
+    if (planet < 0 || planet >= static_cast<int>(m_published.size())) return Snapshot{};
+    return m_published[planet];
 }
 
-void SimulationRunner::requestSave(const std::string& path) {
+void SimulationRunner::requestSave(int planet, const std::string& path) {
     std::lock_guard<std::mutex> lock(m_ioMutex);
     m_ioOp = IoOp::Save;
+    m_ioPlanet = planet;
     m_ioPath = path;
 }
 
-void SimulationRunner::requestLoad(const std::string& path) {
+void SimulationRunner::requestLoad(int planet, const std::string& path) {
     std::lock_guard<std::mutex> lock(m_ioMutex);
     m_ioOp = IoOp::Load;
+    m_ioPlanet = planet;
     m_ioPath = path;
 }
 

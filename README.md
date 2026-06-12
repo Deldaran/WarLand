@@ -320,8 +320,14 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **Barrière de la langue en diplomatie** : les civilisations de **même culture se rapprochent**, les cultures différentes **s'éloignent** (biais sur l'opinion)
 - **Couche « Langue »** : colore le globe par culture (palette dédiée) + **frontières culturelles** faisant ressortir les minorités — panneau Contexte indique la culture et l'étiquette *(minorité)*
 
+### Villes, commerce culturel & multi-planètes ✅
+- **Urbanisation** : la population urbaine est une fraction croissant avec l'ère (âge de pierre ~4 % → ère spatiale ~60 %) ; taille du point et niveau (Village/Bourg/Ville/Métropole) basés sur l'urbain
+- **Spécialisation** des villes : Portuaire (côtier), Minière (montagne), Industrielle, Agricole, Rurale
+- **Commerce freiné par la langue** : les échanges entre provinces de cultures différentes sont réduits (barrière culturelle)
+- **Multi-planètes** : un **système de 3 mondes** générés différemment, **simulés en parallèle** (chacun sa géographie, ses civilisations, son climat) — [SimulationRunner](src/simulation/SimulationRunner.h) gère N `SimulationWorld`. Un **sélecteur « Monde k/N »** permet de voyager entre les planètes ; le rendu n'affiche que la planète active (ressources de rendu partagées) → coût GPU maîtrisé
+
 ## Prochaine étape
 
-- **Croissance des villes** indépendante des provinces, urbanisation, spécialisation.
-- **Commerce** influencé par la langue (barrière culturelle aux échanges).
-- **Multi-planètes** et endgame spatial — cf. [GamePlan.md](GamePlan.md).
+- **Voyage interplanétaire** : colonisation d'une autre planète une fois l'ère spatiale atteinte.
+- **Vue système** : carte des planètes / orbites pour naviguer.
+- **Lois, religions** et autres systèmes du [GamePlan.md](GamePlan.md).
