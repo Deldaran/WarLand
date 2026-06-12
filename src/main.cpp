@@ -352,6 +352,7 @@ int main() {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         int cloudTexW = 0, cloudTexH = 0;
+        double cloudUploadTimer = 1.0; // force le 1er upload
 
         // --- Geometrie : la planete + la coque atmospherique ---
         wl::PlanetMesh::Params planetParams;
@@ -592,16 +593,20 @@ int main() {
             float camDist = glm::length(camPos);
             float cloudFade = glm::smoothstep(1.25f, 2.2f, camDist); // 0 pres du sol
             if (cloudFade > 0.001f && !snap.cloud.empty()) {
-                // Mise a jour de la texture nuageuse depuis la simulation climatique.
+                // Mise a jour de la texture nuageuse (throttlee ~5 Hz : le champ
+                // evolue lentement, inutile de re-uploader a chaque frame).
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, cloudTex);
+                cloudUploadTimer += dt;
                 if (snap.cloudW != cloudTexW || snap.cloudH != cloudTexH) {
                     glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, snap.cloudW, snap.cloudH, 0,
                                  GL_RED, GL_FLOAT, snap.cloud.data());
                     cloudTexW = snap.cloudW; cloudTexH = snap.cloudH;
-                } else {
+                    cloudUploadTimer = 0.0;
+                } else if (cloudUploadTimer >= 0.2) {
                     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, snap.cloudW, snap.cloudH,
                                     GL_RED, GL_FLOAT, snap.cloud.data());
+                    cloudUploadTimer = 0.0;
                 }
                 // LOD : moins de pas de loin, plus de detail de pres.
                 int cloudSteps = camDist > 6.0f ? 18 : (camDist > 3.0f ? 32 : 48);

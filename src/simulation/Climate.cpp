@@ -14,7 +14,7 @@ constexpr double kPI = 3.14159265358979323846;
 float zonalWind(float latN) {
     float a = std::abs(latN);
     float dir = (a < 0.33f) ? -1.0f : (a < 0.66f ? 1.0f : -1.0f);
-    return dir * 1.6f;
+    return dir * 1.0f;
 }
 
 // Temperature normalisee (0 froid .. 1 chaud) selon latitude, saison, altitude.
@@ -128,8 +128,11 @@ void Climate::step(double days, double season) {
             m_rain[idx] = glm::mix(m_rain[idx], wet, blend);
 
             // Nuages : air proche de la saturation + precipitation active.
+            // Lisses dans le temps pour eviter tout scintillement du rendu.
             float sat = std::clamp((m_hum[idx] / cap - 0.55f) / 0.45f, 0.0f, 1.0f);
-            m_cloud[idx] = std::clamp(sat * 0.7f + wet * 0.6f, 0.0f, 1.0f);
+            float target = std::clamp(sat * 0.7f + wet * 0.6f, 0.0f, 1.0f);
+            float cblend = std::clamp(0.12f * fd, 0.0f, 1.0f);
+            m_cloud[idx] = glm::mix(m_cloud[idx], target, cblend);
         }
     }
 }
