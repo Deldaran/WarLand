@@ -13,6 +13,7 @@ SimulationRunner::~SimulationRunner() {
 SimulationRunner::Snapshot SimulationRunner::buildSnapshot(int year) const {
     Snapshot snap;
     snap.year = year;
+    snap.timeDays = year * 365.0 + m_dayOfYear;
     snap.totalPopulation = m_world.totalPopulation();
     snap.stability = m_world.stability();
     snap.maxProvincePopulation = m_world.maxProvincePopulation();
@@ -84,7 +85,7 @@ void SimulationRunner::run() {
                 m_dayOfYear -= 365.0;
                 ++m_year;
             }
-            m_world.tick(days, m_year);
+            m_world.tick(days, m_year, m_year * 365.0 + m_dayOfYear);
         }
 
         // Publication de l'instantane (copie courte sous mutex).

@@ -20,6 +20,7 @@ class SimulationRunner {
 public:
     struct Snapshot {
         int year = -3000;
+        double timeDays = 0.0; // temps absolu in-game (meteo / saisons)
         double totalPopulation = 0.0;
         double stability = 1.0;
         double maxProvincePopulation = 1.0;

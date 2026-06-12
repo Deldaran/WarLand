@@ -1,21 +1,23 @@
 #version 450 core
 
 // Nuages volumetriques : raymarching d'un bruit 3D (FBM) dans une coquille
-// spherique autour de la planete, avec auto-ombrage par le soleil. Le nombre
-// de pas (uSteps) est pilote par le LOD, et uFade fait disparaitre les nuages
-// quand la camera s'approche du sol.
+// spherique autour de la planete. Les nuages TOURNENT avec la planete (le bruit
+// est echantillonne en repere planete-fixe) et EVOLUENT dans le temps in-game :
+// des fronts de tempete (wl_storm) les epaississent et les assombrissent.
+// uSteps = LOD ; uFade = disparition au zoom sol.
 
 in vec3 vWorldPos;
 
 uniform vec3 uCameraPos;
 uniform vec3 uSunDir;
-uniform float uTime;
-uniform int uSteps;          // pas de raymarching (LOD)
-uniform float uFade;         // 0 = nuages caches (zoom sol), 1 = visibles
-uniform float uPlanetRadius; // pour occlure les nuages derriere la planete
+uniform float uTime;         // temps in-game (jours) pour l'evolution meteo
+uniform float uPlanetSpin;   // rotation propre de la planete (rad)
+uniform int uSteps;
+uniform float uFade;
+uniform float uPlanetRadius;
 uniform float uCloudInner;
 uniform float uCloudOuter;
-uniform float uCoverage;     // seuil de couverture nuageuse
+uniform float uCoverage;
 uniform float uDensity;
 
 out vec4 FragColor;
@@ -42,7 +44,22 @@ float fbm(vec3 p) {
     return s;
 }
 
-// Intersection rayon / sphere centree a l'origine. x = entree, y = sortie.
+// Champ de tempete (DOIT etre identique cote CPU pour aligner nuages et meteo
+// du sol) : quelques bandes mobiles -> fronts meteo, renvoie ~0 (clair) a 1 (orage).
+float wl_storm(vec3 d, float t) {
+    float v = sin(d.x * 2.7 + t * 0.08)
+            + sin(d.z * 3.1 - t * 0.06)
+            + sin((d.x + d.z) * 2.0 + t * 0.05)
+            + 0.8 * sin(d.y * 4.0 + t * 0.09);
+    return clamp(v * 0.22 + 0.5, 0.0, 1.0);
+}
+
+// Passe une direction monde en repere planete-fixe (annule la rotation propre).
+vec3 toPlanetFrame(vec3 wdir) {
+    float cs = cos(uPlanetSpin), sn = sin(uPlanetSpin);
+    return vec3(wdir.x * cs - wdir.z * sn, wdir.y, wdir.x * sn + wdir.z * cs);
+}
+
 vec2 raySphere(vec3 ro, vec3 rd, float R) {
     float b = dot(ro, rd);
     float c = dot(ro, ro) - R * R;
@@ -52,16 +69,18 @@ vec2 raySphere(vec3 ro, vec3 rd, float R) {
     return vec2(-b - h, -b + h);
 }
 
-float cloudDensity(vec3 pos) {
+float cloudDensity(vec3 pos, out float storm) {
     float r = length(pos);
     float h = (r - uCloudInner) / (uCloudOuter - uCloudInner);
+    storm = 0.0;
     if (h < 0.0 || h > 1.0) return 0.0;
-    // Fond / sommet de la couche adoucis.
     float vertical = smoothstep(0.0, 0.15, h) * smoothstep(1.0, 0.65, h);
-    vec3 dir = normalize(pos);
-    vec3 sp = dir * 5.0 + vec3(uTime * 0.015, 0.0, uTime * 0.010); // vent
+    vec3 pdir = toPlanetFrame(normalize(pos)); // tourne avec la planete
+    storm = wl_storm(pdir, uTime);
+    vec3 sp = pdir * 5.0 + vec3(uTime * 0.002, 0.0, 0.0); // leger vent
     float n = fbm(sp);
-    float d = smoothstep(uCoverage, uCoverage + 0.25, n);
+    float cov = uCoverage - storm * 0.18; // plus de nuages dans les tempetes
+    float d = smoothstep(cov, cov + 0.25, n);
     return d * vertical;
 }
 
@@ -70,19 +89,15 @@ void main() {
     vec3 rd = normalize(vWorldPos - uCameraPos);
 
     vec2 outer = raySphere(ro, rd, uCloudOuter);
-    if (outer.y < 0.0) discard; // rayon hors de la coquille
-
+    if (outer.y < 0.0) discard;
     float tStart = max(outer.x, 0.0);
     float tEnd = outer.y;
-
-    // Occlusion par la planete : on ne marche pas au-dela de sa surface.
     vec2 planet = raySphere(ro, rd, uPlanetRadius);
     if (planet.x > 0.0) tEnd = min(tEnd, planet.x);
     if (tEnd <= tStart) discard;
 
     int steps = uSteps;
     float dt = (tEnd - tStart) / float(steps);
-    // Decalage aleatoire pour casser le banding.
     float t = tStart + dt * hash(vWorldPos * 91.7);
 
     float transmittance = 1.0;
@@ -90,14 +105,17 @@ void main() {
 
     for (int i = 0; i < steps; ++i) {
         vec3 pos = ro + rd * t;
-        float dens = cloudDensity(pos);
+        float storm;
+        float dens = cloudDensity(pos, storm);
         if (dens > 0.001) {
-            // Auto-ombrage : densite vers le soleil (2 echantillons).
-            float ld = cloudDensity(pos + uSunDir * 0.02)
-                     + cloudDensity(pos + uSunDir * 0.05);
+            float ls;
+            float ld = cloudDensity(pos + uSunDir * 0.02, ls)
+                     + cloudDensity(pos + uSunDir * 0.05, ls);
             float light = exp(-ld * 2.0);
             float a = dens * dt * uDensity;
-            vec3 lit = mix(vec3(0.45, 0.50, 0.62), vec3(1.0), light);
+            // Orage -> nuages plus sombres.
+            vec3 baseCol = mix(vec3(1.0), vec3(0.30, 0.31, 0.35), storm * 0.8);
+            vec3 lit = baseCol * (0.35 + 0.65 * light);
             col += transmittance * a * lit;
             transmittance *= exp(-a);
             if (transmittance < 0.02) break;

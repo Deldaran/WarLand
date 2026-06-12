@@ -26,7 +26,8 @@ const BiomeYield kYields[] = {
 const char* kBiomeNames[] = {
     "Ocean", "Desert", "Prairie", "Foret", "Toundra", "Montagne", "Polaire"};
 
-const char* kEventNames[] = {"Secheresse", "Epidemie", "Recolte exceptionnelle"};
+const char* kEventNames[] = {"Secheresse", "Epidemie", "Recolte exceptionnelle",
+                             "Inondation"};
 
 // Eres : seuils cumulatifs de points de technologie.
 const char* kEraNames[] = {"Age de pierre", "Antiquite", "Ere industrielle",
@@ -36,6 +37,27 @@ const double kEraThresholds[] = {0.0, 150.0, 600.0, 1800.0, 5000.0};
 // Probabilite globale qu'un choc survienne, par jour in-game.
 // ~ un evenement tous les 1.5 ans environ a l'echelle du monde.
 constexpr double kEventGlobalRatePerDay = 1.0 / (1.5 * 365.0);
+
+constexpr double kPI = 3.14159265358979323846;
+
+// Champ de tempete : IDENTIQUE a wl_storm() du shader clouds.frag pour que les
+// nuages visibles et la meteo du sol soient alignes. d = direction planete-fixe,
+// t = temps in-game (jours). Renvoie ~0 (clair/sec) a 1 (orage/pluie).
+double stormField(const glm::vec3& d, double t) {
+    double v = std::sin(d.x * 2.7 + t * 0.08)
+             + std::sin(d.z * 3.1 - t * 0.06)
+             + std::sin((d.x + d.z) * 2.0 + t * 0.05)
+             + 0.8 * std::sin(d.y * 4.0 + t * 0.09);
+    return std::clamp(v * 0.22 + 0.5, 0.0, 1.0);
+}
+
+// Effet saisonnier : la "latitude du soleil" oscille sur l'annee. Les regions
+// loin de cette latitude sont en hiver (production reduite).
+double seasonWarmth(double latY, double season) {
+    double tilt = 0.4 * std::sin(season * 2.0 * kPI);
+    double dist = std::abs(latY - tilt);
+    return std::clamp(1.0 - 0.8 * std::clamp(dist - 0.2, 0.0, 1.0), 0.3, 1.1);
+}
 
 // Consommation par habitant (par jour).
 constexpr double kFoodPerCapita = 0.010;
@@ -101,9 +123,13 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
     const int n = provinces.provinceCount();
     m_byProvince.assign(n, entt::null);
 
-    // Copie du graphe d'adjacence pour le commerce / la migration.
+    // Copie du graphe d'adjacence + direction de chaque province (pour la meteo).
     m_neighbors.assign(n, {});
-    for (int p = 0; p < n; ++p) m_neighbors[p] = provinces.neighbors(p);
+    m_provinceDir.assign(n, glm::vec3(0.0f, 1.0f, 0.0f));
+    for (int p = 0; p < n; ++p) {
+        m_neighbors[p] = provinces.neighbors(p);
+        m_provinceDir[p] = provinces.provinceDir(p);
+    }
 
     // Diplomatie : opinions inter-civilisations initialisees autour de 0.
     m_civCount = provinces.civCount();
@@ -174,18 +200,31 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
               << " habitees, degre moyen " << deg << "\n";
 }
 
-void SimulationWorld::tick(double days, int year) {
+void SimulationWorld::tick(double days, int year, double timeDays) {
     if (days <= 0.0) return;
     days = std::min(days, 10.0); // garde-fou contre les gros pas de temps
 
+    const double tStorm = std::fmod(timeDays, 100000.0);       // phase meteo bornee
+    const double season = std::fmod(timeDays, 365.0) / 365.0;  // 0..1 sur l'annee
+
     auto view = m_registry.view<CProvince, CPopulation, CStock>();
     for (auto e : view) {
-        const CProvince& prov = view.get<CProvince>(e);
+        CProvince& prov = view.get<CProvince>(e);
         if (prov.ocean || prov.civ < 0) continue; // les terres sauvages sont vides
 
         CPopulation& pop = view.get<CPopulation>(e);
         CStock& stock = view.get<CStock>(e);
         const BiomeYield& y = kYields[static_cast<int>(prov.biome)];
+
+        // --- Meteo locale (alignee sur les nuages) + saison ---
+        const glm::vec3& dir = m_provinceDir[prov.id];
+        double rain = stormField(dir, tStorm);
+        prov.rainfall = rain;
+        // Pluie moderee = ideale ; secheresse ou inondation penalisent.
+        double rainFactor = 0.55 + rain;
+        if (rain > 0.85) rainFactor -= (rain - 0.85) * 4.0; // inondation
+        rainFactor = std::clamp(rainFactor, 0.3, 1.5);
+        double warmth = seasonWarmth(dir.y, season); // saisons par latitude
 
         // Choc actif sur la province (secheresse, epidemie...).
         double foodFactor = 1.0;
@@ -205,7 +244,7 @@ void SimulationWorld::tick(double days, int year) {
         double sq = std::sqrt(workers);
 
         // --- Nourriture : moteur de la dynamique de population ---
-        double foodProd = y.food * sq * kFoodProdFactor * foodFactor;
+        double foodProd = y.food * sq * kFoodProdFactor * foodFactor * rainFactor * warmth;
         double foodCons = workers * kFoodPerCapita;
         double balance = foodProd - foodCons; // par jour
         pop.lastFoodBalance = balance;
@@ -244,7 +283,7 @@ void SimulationWorld::tick(double days, int year) {
 
     exchangeBetweenProvinces(days);
     tickDiplomacy(days, year);
-    spawnEvents(days, year);
+    spawnEvents(days, year, timeDays);
     recomputeAggregates();      // populations / comptes / par civ
     tickTech(days);             // techno (depend des populations par civ)
     tickExpansion(days, year);  // colonisation + conquete (depend tech/comptes)
@@ -534,8 +573,9 @@ void SimulationWorld::exchangeBetweenProvinces(double days) {
     }
 }
 
-void SimulationWorld::spawnEvents(double days, int year) {
+void SimulationWorld::spawnEvents(double days, int year, double timeDays) {
     if (m_inhabited.empty()) return;
+    const double tStorm = std::fmod(timeDays, 100000.0);
 
     // Nombre d'evenements attendus sur ce pas de temps (loi ~Poisson).
     double expected = days * kEventGlobalRatePerDay;
@@ -544,7 +584,6 @@ void SimulationWorld::spawnEvents(double days, int year) {
     if (u01(m_rng) < (expected - count)) ++count;
 
     std::uniform_int_distribution<size_t> pickProv(0, m_inhabited.size() - 1);
-    std::uniform_int_distribution<int> pickType(0, static_cast<int>(EventType::Count) - 1);
 
     for (int k = 0; k < count; ++k) {
         entt::entity e = m_inhabited[pickProv(m_rng)];
@@ -552,7 +591,15 @@ void SimulationWorld::spawnEvents(double days, int year) {
         if (prov.civ < 0) continue;                       // pas de choc sur le vide
         if (m_registry.any_of<CAffliction>(e)) continue;  // deja afflige
 
-        EventType type = static_cast<EventType>(pickType(m_rng));
+        // Le type de choc depend de la meteo locale : zone seche -> secheresse,
+        // zone tres pluvieuse -> inondation, sinon epidemie ou bonne recolte.
+        double rain = stormField(m_provinceDir[prov.id], tStorm);
+        EventType type;
+        if (rain < 0.30)       type = EventType::Drought;
+        else if (rain > 0.80)  type = EventType::Flood;
+        else                   type = (u01(m_rng) < 0.5) ? EventType::Epidemic
+                                                         : EventType::BumperHarvest;
+
         CAffliction aff;
         aff.type = type;
         int severity = 1;
@@ -571,6 +618,12 @@ void SimulationWorld::spawnEvents(double days, int year) {
                 aff.foodFactor = 1.6;
                 aff.daysLeft = 365.0; // 1 an
                 severity = 0;
+                break;
+            case EventType::Flood:
+                aff.foodFactor = 0.5;
+                aff.mortalityPerDay = 0.0006;
+                aff.daysLeft = 365.0 * (0.4 + u01(m_rng) * 0.6); // ~0.4 a 1 an
+                severity = 2;
                 break;
             default: break;
         }
@@ -634,6 +687,7 @@ SimulationWorld::ProvinceState SimulationWorld::state(int provinceId) const {
     s.energy = stock.energy;
     s.foodBalance = pop.lastFoodBalance;
     s.control = prov.control;
+    s.rainfall = prov.rainfall;
     if (const CAffliction* aff = m_registry.try_get<CAffliction>(e)) {
         s.afflicted = true;
         s.affliction = aff->type;

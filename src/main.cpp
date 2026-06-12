@@ -60,6 +60,24 @@ std::string formatNumber(double v) {
     return buf;
 }
 
+// Saison globale a partir du temps in-game.
+const char* seasonName(double timeDays) {
+    double s = std::fmod(timeDays, 365.0) / 365.0;
+    if (s < 0.0) s += 1.0;
+    if (s < 0.25) return "Printemps";
+    if (s < 0.50) return "Ete";
+    if (s < 0.75) return "Automne";
+    return "Hiver";
+}
+
+// Libelle meteo d'apres la pluviometrie (0..1).
+const char* weatherLabel(double rain) {
+    if (rain < 0.30) return "sec";
+    if (rain > 0.80) return "orageux";
+    if (rain > 0.55) return "pluvieux";
+    return "nuageux";
+}
+
 // Rampe de couleur pour la heatmap de population (bleu -> rouge).
 glm::vec3 heatColor(float t) {
     t = std::clamp(t, 0.0f, 1.0f);
@@ -94,6 +112,8 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
             ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1), "%s",
                                wl::SimulationWorld::eraName(era));
         }
+        ImGui::SameLine(0, 16);
+        ImGui::TextColored(ImVec4(0.7f, 0.9f, 0.7f, 1), "%s", seasonName(snap.timeDays));
         ImGui::SameLine(0, 30);
         if (ImGui::Button(runner.paused() ? "Play" : "Pause")) runner.setPaused(!runner.paused());
         ImGui::SameLine();
@@ -181,6 +201,8 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
                         ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1), "Nourriture : surplus");
                     else
                         ImGui::TextColored(ImVec4(0.95f, 0.4f, 0.3f, 1), "Nourriture : FAMINE");
+                    ImGui::Text("Meteo : %.0f%% (%s)", st.rainfall * 100.0,
+                                weatherLabel(st.rainfall));
                     if (st.afflicted) {
                         ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.2f, 1), "Choc : %s",
                             wl::SimulationWorld::eventName(st.affliction));
@@ -478,9 +500,10 @@ int main() {
             glm::vec3 sunDir = glm::normalize(
                 glm::vec3(std::cos(sunAngle), 0.25f, std::sin(sunAngle)));
 
-            // Rotation propre lente de la planete.
+            // Rotation propre lente de la planete (partagee avec les nuages).
+            float planetSpin = static_cast<float>(now) * 0.03f;
             glm::mat4 planetModel = glm::rotate(glm::mat4(1.0f),
-                static_cast<float>(now) * 0.03f, glm::vec3(0.0f, 1.0f, 0.0f));
+                planetSpin, glm::vec3(0.0f, 1.0f, 0.0f));
 
             // --- Picking : ray-sphere depuis le curseur ---
             if (doPick) {
@@ -573,7 +596,9 @@ int main() {
                 cloudShader.setMat4("uViewProj", viewProj);
                 cloudShader.setVec3("uCameraPos", camPos);
                 cloudShader.setVec3("uSunDir", sunDir);
-                cloudShader.setFloat("uTime", static_cast<float>(now));
+                cloudShader.setFloat("uTime",
+                    static_cast<float>(std::fmod(snap.timeDays, 100000.0))); // temps in-game
+                cloudShader.setFloat("uPlanetSpin", planetSpin); // nuages co-rotatifs
                 cloudShader.setInt("uSteps", cloudSteps);
                 cloudShader.setFloat("uFade", cloudFade);
                 cloudShader.setFloat("uPlanetRadius", 1.0f);

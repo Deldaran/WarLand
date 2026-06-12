@@ -3,6 +3,7 @@
 #include "simulation/Components.h"
 
 #include <entt/entt.hpp>
+#include <glm/glm.hpp>
 #include <vector>
 #include <string>
 #include <deque>
@@ -32,7 +33,8 @@ public:
         double foodBalance = 0.0;
         bool afflicted = false;
         EventType affliction = EventType::Drought;
-        double control = 0.0; // emprise du proprietaire (0..100)
+        double control = 0.0;  // emprise du proprietaire (0..100)
+        double rainfall = 0.5; // meteo locale (0 sec .. 1 orage)
     };
 
     // Entree du journal historique (timeline).
@@ -46,7 +48,8 @@ public:
     void init(const ProvinceMap& provinces, float seaLevel = 0.0f);
 
     // Avance la simulation de `days` jours in-game (0 si en pause).
-    void tick(double days, int year);
+    // timeDays = temps absolu in-game (pour la meteo et les saisons).
+    void tick(double days, int year, double timeDays);
 
     ProvinceState state(int provinceId) const;
     std::vector<ProvinceState> allStates() const; // pour publier un snapshot
@@ -83,6 +86,7 @@ private:
     std::vector<entt::entity> m_byProvince;  // index = id de province
     std::vector<entt::entity> m_inhabited;   // provinces non oceaniques
     std::vector<std::vector<int>> m_neighbors; // graphe d'adjacence (par id)
+    std::vector<glm::vec3> m_provinceDir;    // direction (repere planete-fixe)
 
     double m_totalPopulation = 0.0;
     double m_maxProvincePopulation = 1.0;
@@ -108,7 +112,7 @@ private:
     void tickDiplomacy(double days, int year);
     void tickTech(double days);
     void tickExpansion(double days, int year); // colonisation + conquete
-    void spawnEvents(double days, int year);
+    void spawnEvents(double days, int year, double timeDays);
     void logEvent(int year, std::string text, int severity);
 };
 

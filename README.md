@@ -226,6 +226,14 @@ cmake --build build
 - **Nuages volumétriques** : raymarching d'un bruit 3D (FBM) dans une coquille sphérique, auto-ombrage par le soleil, **LOD** (18/32/48 pas selon la distance) et **fondu au zoom** (les nuages s'effacent près du sol) — [clouds.frag](shaders/clouds.frag)
 - Éclairage solaire directionnel avec cycle jour/nuit lent + spéculaire sur les océans
 
+### Météo & saisons ✅
+- **Nuages co-rotatifs** : échantillonnés en repère planète-fixe → ils **tournent avec la planète** au lieu d'être figés
+- **Fronts de tempête animés** (`wl_storm`) qui **épaississent et assombrissent** les nuages dans le temps in-game (orages visibles)
+- **Connexion sol ↔ ciel** : la **même fonction de tempête** est calculée côté simulation → la pluie/sécheresse au-dessus d'une province **modifie sa production de nourriture** (nuages et météo du sol parfaitement alignés)
+- **Saisons** : la latitude du soleil oscille sur l'année → production réduite en hiver et aux hautes latitudes
+- **Événements météo** : **sécheresses** (zones sèches) et **inondations** (zones très pluvieuses) déclenchées selon la météo locale
+- HUD : **saison** dans la barre du haut, **météo (%)** de la province dans le panneau Contexte
+
 ### Phase 2 — Overlay politique ✅ (en cours)
 - **Découpage en provinces** par Voronoï sphérique (graines réparties via spirale de Fibonacci) — [ProvinceMap](src/renderer/overlay/ProvinceMap.h)
 - **Regroupement en civilisations** : chaque province appartient à la capitale la plus proche → nations contiguës, couleur distincte par civ (roue chromatique HSV)

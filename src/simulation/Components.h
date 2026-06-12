@@ -26,6 +26,7 @@ struct CProvince {
     bool ocean = true;
     double control = 0.0;  // emprise du proprietaire (0..100)
     int contender = -1;    // civ en train de coloniser une terre sauvage
+    double rainfall = 0.5; // meteo locale courante (0 sec .. 1 orage/pluie)
 };
 
 // Population vivante de la province.
@@ -53,6 +54,7 @@ enum class EventType : uint8_t {
     Drought = 0,    // secheresse : effondre la production de nourriture
     Epidemic,       // epidemie : mortalite continue
     BumperHarvest,  // recolte exceptionnelle : bonus de nourriture
+    Flood,          // inondation : pertes et chute de production
     Count
 };
 

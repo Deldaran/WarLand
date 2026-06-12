@@ -49,6 +49,7 @@ public:
     // Donnees geographiques par province (pour initialiser la simulation).
     float provinceElevation(int province) const; // [-1,1] moyenne
     float provinceLatitude(int province) const;   // 0 equateur -> 1 pole
+    glm::vec3 provinceDir(int province) const;     // direction unitaire (repere planete-fixe)
 
     // Graphe d'adjacence : provinces partageant une frontiere (commerce/migration).
     const std::vector<int>& neighbors(int province) const;

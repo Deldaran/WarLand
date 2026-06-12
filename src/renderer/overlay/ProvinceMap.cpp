@@ -250,6 +250,12 @@ float ProvinceMap::provinceLatitude(int province) const {
     return m_provinceLatitude[province];
 }
 
+glm::vec3 ProvinceMap::provinceDir(int province) const {
+    if (province < 0 || province >= static_cast<int>(m_provinceSeeds.size()))
+        return glm::vec3(0.0f, 1.0f, 0.0f);
+    return m_provinceSeeds[province];
+}
+
 const std::vector<int>& ProvinceMap::neighbors(int province) const {
     static const std::vector<int> empty;
     if (province < 0 || province >= static_cast<int>(m_neighbors.size())) return empty;
