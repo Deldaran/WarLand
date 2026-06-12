@@ -226,13 +226,14 @@ cmake --build build
 - **Nuages volumétriques** : raymarching d'un bruit 3D (FBM) dans une coquille sphérique, auto-ombrage par le soleil, **LOD** (18/32/48 pas selon la distance) et **fondu au zoom** (les nuages s'effacent près du sol) — [clouds.frag](shaders/clouds.frag)
 - Éclairage solaire directionnel avec cycle jour/nuit lent + spéculaire sur les océans
 
-### Météo & saisons ✅
-- **Nuages co-rotatifs** : échantillonnés en repère planète-fixe → ils **tournent avec la planète** au lieu d'être figés
-- **Fronts de tempête animés** (`wl_storm`) qui **épaississent et assombrissent** les nuages dans le temps in-game (orages visibles)
-- **Connexion sol ↔ ciel** : la **même fonction de tempête** est calculée côté simulation → la pluie/sécheresse au-dessus d'une province **modifie sa production de nourriture** (nuages et météo du sol parfaitement alignés)
+### Cycle de l'eau, météo & saisons ✅
+- **Simulation du cycle de l'eau** sur une grille lat/lon (128×64) — [Climate](src/simulation/Climate.h) : **évaporation** des océans chauds → **transport par les vents zonaux** (alizés / vents d'ouest) → **condensation/précipitation** avec **effet orographique** (montagnes au vent humides, sous le vent sèches) et **ceintures subtropicales sèches** (~30°)
+- **De vrais déserts persistants** émergent (intérieurs continentaux, ombres pluviométriques, zones subtropicales) — pluie variant de 0 (désert) à 1 (zone humide) sur la planète
+- **Nuages pilotés par le climat** : la couverture nuageuse simulée est envoyée au shader via une **texture** → les nuages **tournent avec la planète** et **évoluent réellement** (plus de pulsation), s'assombrissant là où ils sont épais — [clouds.frag](shaders/clouds.frag)
+- **Connexion ciel ↔ sol** : la pluie au-dessus d'une province **pilote sa production de nourriture** → la population se concentre dans les régions fertiles, les déserts restent peu peuplés
 - **Saisons** : la latitude du soleil oscille sur l'année → production réduite en hiver et aux hautes latitudes
-- **Événements météo** : **sécheresses** (zones sèches) et **inondations** (zones très pluvieuses) déclenchées selon la météo locale
-- HUD : **saison** dans la barre du haut, **météo (%)** de la province dans le panneau Contexte
+- **Événements météo** : **sécheresses** (zones sèches), **inondations** (zones très pluvieuses)
+- HUD : **saison** dans la barre, **météo (%)** de la province dans le Contexte
 
 ### Phase 2 — Overlay politique ✅ (en cours)
 - **Découpage en provinces** par Voronoï sphérique (graines réparties via spirale de Fibonacci) — [ProvinceMap](src/renderer/overlay/ProvinceMap.h)

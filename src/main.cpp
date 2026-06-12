@@ -343,6 +343,16 @@ int main() {
         const float kCloudOuter = 1.100f;
         const float kCloudDrawRadius = 1.11f; // sphere de rendu (englobe la coquille)
 
+        // Texture du champ nuageux simule (cycle de l'eau), mise a jour chaque frame.
+        GLuint cloudTex = 0;
+        glGenTextures(1, &cloudTex);
+        glBindTexture(GL_TEXTURE_2D, cloudTex);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);          // longitude
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);   // latitude
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        int cloudTexW = 0, cloudTexH = 0;
+
         // --- Geometrie : la planete + la coque atmospherique ---
         wl::PlanetMesh::Params planetParams;
         planetParams.subdivisions = 6;
@@ -581,7 +591,18 @@ int main() {
             // 3. Nuages volumetriques (raymarching) avec LOD + fondu au zoom.
             float camDist = glm::length(camPos);
             float cloudFade = glm::smoothstep(1.25f, 2.2f, camDist); // 0 pres du sol
-            if (cloudFade > 0.001f) {
+            if (cloudFade > 0.001f && !snap.cloud.empty()) {
+                // Mise a jour de la texture nuageuse depuis la simulation climatique.
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, cloudTex);
+                if (snap.cloudW != cloudTexW || snap.cloudH != cloudTexH) {
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, snap.cloudW, snap.cloudH, 0,
+                                 GL_RED, GL_FLOAT, snap.cloud.data());
+                    cloudTexW = snap.cloudW; cloudTexH = snap.cloudH;
+                } else {
+                    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, snap.cloudW, snap.cloudH,
+                                    GL_RED, GL_FLOAT, snap.cloud.data());
+                }
                 // LOD : moins de pas de loin, plus de detail de pres.
                 int cloudSteps = camDist > 6.0f ? 18 : (camDist > 3.0f ? 32 : 48);
                 glm::mat4 cloudModel = glm::scale(glm::mat4(1.0f), glm::vec3(kCloudDrawRadius));
@@ -604,8 +625,8 @@ int main() {
                 cloudShader.setFloat("uPlanetRadius", 1.0f);
                 cloudShader.setFloat("uCloudInner", kCloudInner);
                 cloudShader.setFloat("uCloudOuter", kCloudOuter);
-                cloudShader.setFloat("uCoverage", 0.42f);
-                cloudShader.setFloat("uDensity", 90.0f);
+                cloudShader.setFloat("uDensity", 95.0f);
+                cloudShader.setInt("uCloudTex", 0);
                 atmosphere.draw(); // sphere lisse reutilisee, mise a l'echelle
                 glDisable(GL_BLEND);
                 glDisable(GL_CULL_FACE);

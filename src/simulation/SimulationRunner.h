@@ -31,6 +31,9 @@ public:
         std::vector<double> civPopulation;   // population par civ
         std::vector<double> civTech;         // points de technologie par civ
         std::vector<int> civProvinceCount;   // nombre de provinces par civ
+        int cloudW = 0;                      // champ nuageux simule (cycle de l'eau)
+        int cloudH = 0;
+        std::vector<float> cloud;            // couverture nuageuse par cellule (0..1)
     };
 
     ~SimulationRunner();

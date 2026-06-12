@@ -40,17 +40,6 @@ constexpr double kEventGlobalRatePerDay = 1.0 / (1.5 * 365.0);
 
 constexpr double kPI = 3.14159265358979323846;
 
-// Champ de tempete : IDENTIQUE a wl_storm() du shader clouds.frag pour que les
-// nuages visibles et la meteo du sol soient alignes. d = direction planete-fixe,
-// t = temps in-game (jours). Renvoie ~0 (clair/sec) a 1 (orage/pluie).
-double stormField(const glm::vec3& d, double t) {
-    double v = std::sin(d.x * 2.7 + t * 0.08)
-             + std::sin(d.z * 3.1 - t * 0.06)
-             + std::sin((d.x + d.z) * 2.0 + t * 0.05)
-             + 0.8 * std::sin(d.y * 4.0 + t * 0.09);
-    return std::clamp(v * 0.22 + 0.5, 0.0, 1.0);
-}
-
 // Effet saisonnier : la "latitude du soleil" oscille sur l'annee. Les regions
 // loin de cette latitude sont en hiver (production reduite).
 double seasonWarmth(double latY, double season) {
@@ -131,6 +120,9 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
         m_provinceDir[p] = provinces.provinceDir(p);
     }
 
+    // Climat : grille du cycle de l'eau (deserts, regions humides...).
+    m_climate.init(provinces, seaLevel);
+
     // Diplomatie : opinions inter-civilisations initialisees autour de 0.
     m_civCount = provinces.civCount();
     m_opinion.assign(m_civCount * m_civCount, 0.0f);
@@ -204,8 +196,10 @@ void SimulationWorld::tick(double days, int year, double timeDays) {
     if (days <= 0.0) return;
     days = std::min(days, 10.0); // garde-fou contre les gros pas de temps
 
-    const double tStorm = std::fmod(timeDays, 100000.0);       // phase meteo bornee
     const double season = std::fmod(timeDays, 365.0) / 365.0;  // 0..1 sur l'annee
+
+    // Cycle de l'eau : evaporation -> vents -> precipitation (deserts, etc.).
+    m_climate.step(days, season);
 
     auto view = m_registry.view<CProvince, CPopulation, CStock>();
     for (auto e : view) {
@@ -216,14 +210,14 @@ void SimulationWorld::tick(double days, int year, double timeDays) {
         CStock& stock = view.get<CStock>(e);
         const BiomeYield& y = kYields[static_cast<int>(prov.biome)];
 
-        // --- Meteo locale (alignee sur les nuages) + saison ---
+        // --- Meteo locale (issue du cycle de l'eau) + saison ---
         const glm::vec3& dir = m_provinceDir[prov.id];
-        double rain = stormField(dir, tStorm);
+        double rain = m_climate.rainfallAt(dir);
         prov.rainfall = rain;
-        // Pluie moderee = ideale ; secheresse ou inondation penalisent.
-        double rainFactor = 0.55 + rain;
-        if (rain > 0.85) rainFactor -= (rain - 0.85) * 4.0; // inondation
-        rainFactor = std::clamp(rainFactor, 0.3, 1.5);
+        // Pluie moderee = ideale ; secheresse (deserts) ou exces penalisent.
+        double rainFactor = 0.5 + rain * 3.0; // ~1.0 a la pluviometrie moyenne
+        if (rain > 0.60) rainFactor -= (rain - 0.60) * 1.5; // exces / inondation
+        rainFactor = std::clamp(rainFactor, 0.35, 1.5);
         double warmth = seasonWarmth(dir.y, season); // saisons par latitude
 
         // Choc actif sur la province (secheresse, epidemie...).
@@ -575,7 +569,7 @@ void SimulationWorld::exchangeBetweenProvinces(double days) {
 
 void SimulationWorld::spawnEvents(double days, int year, double timeDays) {
     if (m_inhabited.empty()) return;
-    const double tStorm = std::fmod(timeDays, 100000.0);
+    (void)timeDays;
 
     // Nombre d'evenements attendus sur ce pas de temps (loi ~Poisson).
     double expected = days * kEventGlobalRatePerDay;
@@ -593,10 +587,10 @@ void SimulationWorld::spawnEvents(double days, int year, double timeDays) {
 
         // Le type de choc depend de la meteo locale : zone seche -> secheresse,
         // zone tres pluvieuse -> inondation, sinon epidemie ou bonne recolte.
-        double rain = stormField(m_provinceDir[prov.id], tStorm);
+        double rain = m_climate.rainfallAt(m_provinceDir[prov.id]);
         EventType type;
-        if (rain < 0.30)       type = EventType::Drought;
-        else if (rain > 0.80)  type = EventType::Flood;
+        if (rain < 0.08)       type = EventType::Drought;
+        else if (rain > 0.55)  type = EventType::Flood;
         else                   type = (u01(m_rng) < 0.5) ? EventType::Epidemic
                                                          : EventType::BumperHarvest;
 

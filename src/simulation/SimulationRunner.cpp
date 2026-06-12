@@ -25,6 +25,9 @@ SimulationRunner::Snapshot SimulationRunner::buildSnapshot(int year) const {
     snap.civPopulation = m_world.civPopulations();
     snap.civTech = m_world.civTech();
     snap.civProvinceCount = m_world.civProvinceCounts();
+    snap.cloudW = m_world.climateWidth();
+    snap.cloudH = m_world.climateHeight();
+    snap.cloud = m_world.cloudField();
     return snap;
 }
 

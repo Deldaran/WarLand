@@ -1,6 +1,7 @@
 #pragma once
 
 #include "simulation/Components.h"
+#include "simulation/Climate.h"
 
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
@@ -67,6 +68,11 @@ public:
     const std::vector<double>& civTech() const { return m_civTech; }
     const std::vector<int>& civProvinceCounts() const { return m_civProvinceCount; }
 
+    // Champ nuageux simule (cycle de l'eau) pour le rendu des nuages.
+    int climateWidth() const { return m_climate.width(); }
+    int climateHeight() const { return m_climate.height(); }
+    const std::vector<float>& cloudField() const { return m_climate.cloudField(); }
+
     static const char* eraName(int era);
     static int eraForTech(double tech); // indice d'ere a partir des points de techno
 
@@ -104,6 +110,7 @@ private:
         return m_warState[civA * m_civCount + civB] != 0;
     }
 
+    Climate m_climate;
     std::mt19937 m_rng{12345u};
     std::deque<EventRecord> m_events;
 
