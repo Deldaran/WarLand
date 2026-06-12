@@ -106,7 +106,7 @@ glm::vec3 heatColor(float t) {
 void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& snap,
             LayerState& layers, const wl::Camera& cam,
             const wl::PlanetMesh& planet, const wl::ProvinceMap& provinces,
-            int& activePlanet, int planetCount,
+            int& activePlanet, int planetCount, bool isSystem, bool& toggleView,
             int selectedProvince, int selectedCiv, double fps) {
     ImGuiViewport* vp = ImGui::GetMainViewport();
 
@@ -149,7 +149,9 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
         ImGui::SameLine(0, 40);
         ImGui::Text("Population: %s", formatNumber(snap.totalPopulation).c_str());
         ImGui::SameLine(0, 40);
-        // Selecteur de planete (systeme multi-mondes).
+        // Vue systeme / planete + selecteur de monde.
+        if (ImGui::Button(isSystem ? "Vue planete" : "Vue systeme")) toggleView = true;
+        ImGui::SameLine();
         ImGui::Text("Monde %d/%d", activePlanet + 1, planetCount);
         ImGui::SameLine();
         if (ImGui::Button("<##planet")) activePlanet = (activePlanet + planetCount - 1) % planetCount;
@@ -421,6 +423,35 @@ int main() {
         }
         int activePlanet = 0, prevPlanet = 0;
 
+        // Vue : planete (zoom sur un monde) ou systeme (orbites des planetes).
+        enum class ViewMode { Planet, System };
+        ViewMode viewMode = ViewMode::Planet;
+        std::vector<float> orbitRadius(kNumPlanets);
+        std::vector<float> orbitSpeed(kNumPlanets);
+        std::vector<float> orbitPhase(kNumPlanets);
+        for (int i = 0; i < kNumPlanets; ++i) {
+            orbitRadius[i] = 5.0f + i * 4.0f;
+            orbitSpeed[i] = 0.06f / (1.0f + i * 0.5f); // les planetes externes plus lentes
+            orbitPhase[i] = i * 2.1f;
+        }
+        // Cercle d'orbite (line loop dans le plan XZ, rayon 1).
+        GLuint orbitVao = 0, orbitVbo = 0;
+        {
+            std::vector<float> circ;
+            const int seg = 96;
+            for (int k = 0; k < seg; ++k) {
+                float a = 2.0f * 3.14159265f * k / seg;
+                circ.insert(circ.end(), {std::cos(a), 0.0f, std::sin(a)});
+            }
+            glGenVertexArrays(1, &orbitVao); glGenBuffers(1, &orbitVbo);
+            glBindVertexArray(orbitVao);
+            glBindBuffer(GL_ARRAY_BUFFER, orbitVbo);
+            glBufferData(GL_ARRAY_BUFFER, circ.size() * sizeof(float), circ.data(), GL_STATIC_DRAW);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+            glEnableVertexAttribArray(0);
+            glBindVertexArray(0);
+        }
+
         // Simulation sur son propre thread (toutes les planetes en parallele).
         wl::SimulationRunner runner;
         runner.start(planetPtrs, planetParams.seaLevel);
@@ -651,6 +682,13 @@ int main() {
             glm::mat4 planetModel = glm::rotate(glm::mat4(1.0f),
                 planetSpin, glm::vec3(0.0f, 1.0f, 0.0f));
 
+            // --- Position des planetes dans le systeme (orbites animees) ---
+            std::vector<glm::vec3> orbitPos(kNumPlanets);
+            for (int i = 0; i < kNumPlanets; ++i) {
+                float a = static_cast<float>(now) * orbitSpeed[i] + orbitPhase[i];
+                orbitPos[i] = glm::vec3(std::cos(a), 0.0f, std::sin(a)) * orbitRadius[i];
+            }
+
             // --- Picking : ray-sphere depuis le curseur ---
             if (doPick) {
                 float ndcX = static_cast<float>(2.0 * pickX / window.width() - 1.0);
@@ -662,19 +700,37 @@ int main() {
                 glm::vec3 pFar = glm::vec3(farH) / farH.w;
                 glm::vec3 rd = glm::normalize(pFar - pNear);
 
-                // Intersection avec la sphere unite centree a l'origine.
-                float b = glm::dot(camPos, rd);
-                float c = glm::dot(camPos, camPos) - 1.0f;
-                float disc = b * b - c;
-                if (disc >= 0.0f) {
-                    float t = -b - std::sqrt(disc);
-                    if (t < 0.0f) t = -b + std::sqrt(disc);
-                    if (t >= 0.0f) {
-                        glm::vec3 hit = camPos + t * rd;
-                        // Retour en espace modele (rotation inverse = transposee).
-                        glm::vec3 modelDir =
-                            glm::transpose(glm::mat3(planetModel)) * hit;
-                        provinces.pick(modelDir, selectedProvince, selectedCiv);
+                if (viewMode == ViewMode::Planet) {
+                    // Selection d'une province sur la planete active (sphere a l'origine).
+                    float b = glm::dot(camPos, rd);
+                    float c = glm::dot(camPos, camPos) - 1.0f;
+                    float disc = b * b - c;
+                    if (disc >= 0.0f) {
+                        float t = -b - std::sqrt(disc);
+                        if (t < 0.0f) t = -b + std::sqrt(disc);
+                        if (t >= 0.0f) {
+                            glm::vec3 hit = camPos + t * rd;
+                            glm::vec3 modelDir = glm::transpose(glm::mat3(planetModel)) * hit;
+                            provinces.pick(modelDir, selectedProvince, selectedCiv);
+                        }
+                    }
+                } else {
+                    // Vue systeme : clic sur une planete -> on voyage vers elle.
+                    int hitPlanet = -1; float bestT = 1e9f;
+                    for (int i = 0; i < kNumPlanets; ++i) {
+                        glm::vec3 oc = camPos - orbitPos[i];
+                        float b = glm::dot(oc, rd);
+                        float c = glm::dot(oc, oc) - 1.1f * 1.1f; // rayon de clic
+                        float disc = b * b - c;
+                        if (disc < 0.0f) continue;
+                        float t = -b - std::sqrt(disc);
+                        if (t < 0.0f) t = -b + std::sqrt(disc);
+                        if (t >= 0.0f && t < bestT) { bestT = t; hitPlanet = i; }
+                    }
+                    if (hitPlanet >= 0) {
+                        activePlanet = hitPlanet;
+                        viewMode = ViewMode::Planet;
+                        camera.setDistance(3.0f);
                     }
                 }
             }
@@ -683,6 +739,40 @@ int main() {
             glClearColor(0.01f, 0.01f, 0.03f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+          if (viewMode == ViewMode::System) {
+            // ===== VUE SYSTEME : etoile centrale + planetes en orbite =====
+            glEnable(GL_DEPTH_TEST); glDepthMask(GL_TRUE); glDisable(GL_BLEND);
+            glDisable(GL_CULL_FACE);
+            // Etoile (sphere brillante).
+            borderShader.bind();
+            borderShader.setMat4("uViewProj", viewProj);
+            borderShader.setMat4("uModel", glm::scale(glm::mat4(1.0f), glm::vec3(1.7f)));
+            borderShader.setVec3("uColor", glm::vec3(1.0f, 0.88f, 0.45f));
+            atmosphere.draw();
+            // Anneaux d'orbite.
+            borderShader.setVec3("uColor", glm::vec3(0.25f, 0.28f, 0.38f));
+            glBindVertexArray(orbitVao);
+            for (int i = 0; i < kNumPlanets; ++i) {
+                borderShader.setMat4("uModel",
+                    glm::scale(glm::mat4(1.0f), glm::vec3(orbitRadius[i])));
+                glDrawArrays(GL_LINE_LOOP, 0, 96);
+            }
+            glBindVertexArray(0);
+            // Planetes (terrain, eclairees par l'etoile centrale).
+            planetShader.bind();
+            planetShader.setMat4("uViewProj", viewProj);
+            planetShader.setVec3("uCameraPos", camPos);
+            planetShader.setFloat("uSeaLevel", planetParams.seaLevel);
+            for (int i = 0; i < kNumPlanets; ++i) {
+                glm::mat4 m = glm::translate(glm::mat4(1.0f), orbitPos[i])
+                            * glm::rotate(glm::mat4(1.0f), planetSpin, glm::vec3(0, 1, 0))
+                            * glm::scale(glm::mat4(1.0f), glm::vec3(i == activePlanet ? 1.0f : 0.85f));
+                planetShader.setMat4("uModel", m);
+                planetShader.setVec3("uSunDir", glm::normalize(-orbitPos[i])); // lumiere de l'etoile
+                planetMeshes[i]->draw();
+            }
+          } else {
+            // ===== VUE PLANETE =====
             // 1. La planete (opaque, depth on)
             glEnable(GL_DEPTH_TEST);
             glDepthMask(GL_TRUE);
@@ -827,13 +917,25 @@ int main() {
                 glEnable(GL_DEPTH_TEST);
                 glDepthMask(GL_TRUE);
             }
+          } // fin vue planete
 
             // --- Rendu UI ---
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
+            bool toggleView = false;
             drawUI(runner, snap, layers, camera, planet, provinces,
-                   activePlanet, kNumPlanets, selectedProvince, selectedCiv, fps);
+                   activePlanet, kNumPlanets, viewMode == ViewMode::System, toggleView,
+                   selectedProvince, selectedCiv, fps);
+            if (toggleView) {
+                if (viewMode == ViewMode::System) {
+                    viewMode = ViewMode::Planet;
+                    camera.setDistance(3.0f);
+                } else {
+                    viewMode = ViewMode::System;
+                    camera.setDistance(28.0f);
+                }
+            }
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 

@@ -68,6 +68,7 @@ private:
     int m_year = -3000;
     double m_dayOfYear = 0.0;
     double m_publishAccum = 0.0;
+    double m_interAccum = 0.0; // accumulation pour les colonies interplanetaires
 
     std::vector<std::unique_ptr<SimulationWorld>> m_worlds;
     std::thread m_thread;

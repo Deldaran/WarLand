@@ -92,6 +92,21 @@ void SimulationRunner::run() {
             }
             double timeDays = m_year * 365.0 + m_dayOfYear;
             for (auto& w : m_worlds) w->tick(days, m_year, timeDays); // toutes les planetes
+
+            // Colonisation interplanetaire : une civ avancee essaime vers un autre
+            // monde (tentative tous les ~40 ans in-game).
+            m_interAccum += days;
+            if (m_interAccum >= 40.0 * 365.0 && m_worlds.size() > 1) {
+                m_interAccum = 0.0;
+                for (size_t s = 0; s < m_worlds.size(); ++s) {
+                    int culture = -1;
+                    if (m_worlds[s]->pickSpacefaringCulture(culture)) {
+                        size_t t = (s + 1) % m_worlds.size(); // planete cible
+                        m_worlds[t]->foundColony(culture, m_year);
+                        break; // une colonie par vague
+                    }
+                }
+            }
         }
 
         // Publication throttlee a ~30 Hz (tous les mondes).

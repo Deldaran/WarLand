@@ -16,6 +16,8 @@ public:
     // Entrees normalisees (deltas souris en pixels, delta molette en crans).
     void orbit(float deltaYawDeg, float deltaPitchDeg);
     void zoom(float deltaScroll);
+    void setDistance(float d) { m_distance = glm::clamp(d, m_minDistance, m_maxDistance); }
+    float distance() const { return m_distance; }
 
     glm::mat4 viewMatrix() const;
     glm::mat4 projectionMatrix() const;

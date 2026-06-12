@@ -326,8 +326,13 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **Commerce freiné par la langue** : les échanges entre provinces de cultures différentes sont réduits (barrière culturelle)
 - **Multi-planètes** : un **système de 3 mondes** générés différemment, **simulés en parallèle** (chacun sa géographie, ses civilisations, son climat) — [SimulationRunner](src/simulation/SimulationRunner.h) gère N `SimulationWorld`. Un **sélecteur « Monde k/N »** permet de voyager entre les planètes ; le rendu n'affiche que la planète active (ressources de rendu partagées) → coût GPU maîtrisé
 
+### Vue système & voyage interplanétaire ✅
+- **Vue orbitale** : une étoile centrale + les **planètes sur leurs orbites animées** (anneaux), chaque planète éclairée par l'étoile — bouton **« Vue système »** dans la barre du haut
+- **Voyage** : un **clic sur une planète** dans la vue système zoome dessus (elle devient la planète active) ; retour à la vue système quand on veut
+- **Colonisation interplanétaire** : une civilisation parvenue à l'**ère numérique/spatiale** essaime vers un autre monde → fonde une **nouvelle civilisation coloniale** (de sa culture) sur une terre vierge, loguée dans la timeline
+
 ## Prochaine étape
 
-- **Voyage interplanétaire** : colonisation d'une autre planète une fois l'ère spatiale atteinte.
-- **Vue système** : carte des planètes / orbites pour naviguer.
-- **Lois, religions** et autres systèmes du [GamePlan.md](GamePlan.md).
+- **Lois & régimes politiques** évolutifs (cf. GamePlan).
+- **Religions** et leur diffusion.
+- **Espionnage & intrigues** des personnages clés — cf. [GamePlan.md](GamePlan.md).

@@ -124,6 +124,14 @@ private:
 
     void recomputeAggregates();
     int secede(int formerOwner, int culture); // cree une nouvelle civ (revolte) ; -1 si plafond
+
+public:
+    // Une civ assez avancee peut-elle lancer une colonie interplanetaire ?
+    bool pickSpacefaringCulture(int& culture) const;
+    // Fonde une colonie (nouvelle civ d'une culture donnee) sur une terre vierge.
+    int foundColony(int culture, int year);
+
+private:
     void exchangeBetweenProvinces(double days); // commerce + migration
     void tickDiplomacy(double days, int year);
     void tickTech(double days);

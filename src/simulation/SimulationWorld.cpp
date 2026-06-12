@@ -354,6 +354,51 @@ int SimulationWorld::secede(int formerOwner, int culture) {
     return newId;
 }
 
+bool SimulationWorld::pickSpacefaringCulture(int& culture) const {
+    // Une civ a l'ere numerique ou spatiale, avec un territoire, peut essaimer.
+    for (int c = 0; c < m_civCount; ++c) {
+        if (m_civProvinceCount[c] > 0 && eraForTech(m_civTech[c]) >= 3) { // ere numerique+
+            culture = (c < static_cast<int>(m_civCulture.size())) ? m_civCulture[c] : c;
+            return true;
+        }
+    }
+    return false;
+}
+
+int SimulationWorld::foundColony(int culture, int year) {
+    // Choisir une terre vierge au hasard.
+    std::vector<int> candidates;
+    for (size_t p = 0; p < m_byProvince.size(); ++p) {
+        entt::entity e = m_byProvince[p];
+        if (e == entt::null) continue;
+        const CProvince& pr = m_registry.get<CProvince>(e);
+        if (!pr.ocean && pr.civ < 0) candidates.push_back(static_cast<int>(p));
+    }
+    if (candidates.empty()) return -1;
+
+    int newCiv = secede(-1, culture); // grandit les tableaux civ, sans guerre
+    if (newCiv < 0) return -1;
+    m_civTech[newCiv] = kEraThresholds[2]; // la colonie herite d'un savoir avance
+
+    std::uniform_int_distribution<size_t> pick(0, candidates.size() - 1);
+    int pid = candidates[pick(m_rng)];
+    entt::entity e = m_byProvince[pid];
+    CProvince& pr = m_registry.get<CProvince>(e);
+    pr.civ = newCiv;
+    pr.control = 60.0;
+    pr.contender = -1;
+    pr.culture = culture;
+    double seed = std::max(3000.0, capacityOf(pr.biome) * 0.10);
+    m_registry.get<CPopulation>(e).count = seed;
+    CStock& st = m_registry.get<CStock>(e);
+    st.food = seed * 0.5;
+    st.materials = st.energy = 0.0;
+
+    logEvent(year, "Colonie interplanetaire : civ " + std::to_string(newCiv)
+             + " fondee (province #" + std::to_string(pr.id) + ")", 0);
+    return newCiv;
+}
+
 void SimulationWorld::tickExpansion(double days, int year) {
     if (m_civCount < 1) return;
     const size_t n = m_byProvince.size();
