@@ -196,6 +196,10 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
                 } else if (st.civ < 0) {
                     ImGui::TextDisabled("Terre inhabitee");
                 } else {
+                    const char* tier = st.population < 5000 ? "Village"
+                                     : st.population < 20000 ? "Bourg"
+                                     : st.population < 60000 ? "Ville" : "Metropole";
+                    ImGui::Text("Ville : %s", tier);
                     ImGui::Text("Population : %s", formatNumber(st.population).c_str());
                     if (st.foodBalance >= 0.0)
                         ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1), "Nourriture : surplus");
@@ -324,6 +328,7 @@ int main() {
         wl::Shader overlayShader;
         wl::Shader borderShader;
         wl::Shader cloudShader;
+        wl::Shader cityShader;
         if (!planetShader.loadFromFiles(assets + "/shaders/planet.vert",
                                         assets + "/shaders/planet.frag") ||
             !atmoShader.loadFromFiles(assets + "/shaders/atmosphere.vert",
@@ -333,7 +338,9 @@ int main() {
             !borderShader.loadFromFiles(assets + "/shaders/border.vert",
                                         assets + "/shaders/border.frag") ||
             !cloudShader.loadFromFiles(assets + "/shaders/atmosphere.vert",
-                                       assets + "/shaders/clouds.frag")) {
+                                       assets + "/shaders/clouds.frag") ||
+            !cityShader.loadFromFiles(assets + "/shaders/city.vert",
+                                      assets + "/shaders/city.frag")) {
             std::cerr << "[WarLand] Echec du chargement des shaders\n";
             return 1;
         }
@@ -388,6 +395,26 @@ int main() {
         double heatTimer = 0.0;
         std::vector<glm::vec3> heatColors(provinces.provinceCount());
         std::vector<int> ownerBuf(provinces.provinceCount(), -2);
+
+        // Villes (points) et routes (lignes) reconstruites depuis le snapshot.
+        GLuint cityVao = 0, cityVbo = 0, roadVao = 0, roadVbo = 0;
+        glGenVertexArrays(1, &cityVao); glGenBuffers(1, &cityVbo);
+        glBindVertexArray(cityVao);
+        glBindBuffer(GL_ARRAY_BUFFER, cityVbo);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(4 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+        glGenVertexArrays(1, &roadVao); glGenBuffers(1, &roadVbo);
+        glBindVertexArray(roadVao);
+        glBindBuffer(GL_ARRAY_BUFFER, roadVbo);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
+        int cityCount = 0, roadVertCount = 0;
+        double cityTimer = 1.0;
 
         double lastTime = glfwGetTime();
         double lastMouseX = 0, lastMouseY = 0;
@@ -499,6 +526,44 @@ int main() {
             }
             overlayMode = desired;
 
+            // --- Reconstruction des villes (points) et routes (lignes) ---
+            cityTimer += dt;
+            if (!snap.provinces.empty() && cityTimer >= 0.3) {
+                cityTimer = 0.0;
+                int count = std::min(provinces.provinceCount(),
+                                     static_cast<int>(snap.provinces.size()));
+                std::vector<float> cv, rv;
+                for (int p = 0; p < count; ++p) {
+                    const auto& st = snap.provinces[p];
+                    if (st.ocean || st.civ < 0) continue;
+                    glm::vec3 dir = provinces.provinceDir(p);
+                    glm::vec3 pos = dir * 1.05f;
+                    double pop = st.population;
+                    float size = pop < 5000 ? 6.0f : pop < 20000 ? 9.0f
+                               : pop < 60000 ? 13.0f : 18.0f;
+                    glm::vec3 cc = glm::mix(glm::vec3(1.0f, 0.95f, 0.6f),
+                                            provinces.civColor(st.civ), 0.4f);
+                    cv.insert(cv.end(), {pos.x, pos.y, pos.z, size, cc.r, cc.g, cc.b});
+                    // Routes vers les provinces voisines de la meme civ.
+                    for (int q : provinces.neighbors(p)) {
+                        if (q <= p || q >= count) continue;
+                        const auto& sq = snap.provinces[q];
+                        if (sq.ocean || sq.civ != st.civ) continue;
+                        glm::vec3 a = dir * 1.04f;
+                        glm::vec3 b = provinces.provinceDir(q) * 1.04f;
+                        rv.insert(rv.end(), {a.x, a.y, a.z, b.x, b.y, b.z});
+                    }
+                }
+                cityCount = static_cast<int>(cv.size() / 7);
+                roadVertCount = static_cast<int>(rv.size() / 3);
+                glBindBuffer(GL_ARRAY_BUFFER, cityVbo);
+                glBufferData(GL_ARRAY_BUFFER, cv.size() * sizeof(float),
+                             cv.empty() ? nullptr : cv.data(), GL_DYNAMIC_DRAW);
+                glBindBuffer(GL_ARRAY_BUFFER, roadVbo);
+                glBufferData(GL_ARRAY_BUFFER, rv.size() * sizeof(float),
+                             rv.empty() ? nullptr : rv.data(), GL_DYNAMIC_DRAW);
+            }
+
             // --- Matrices et soleil ---
             glm::mat4 view = camera.viewMatrix();
             glm::mat4 proj = camera.projectionMatrix();
@@ -587,6 +652,34 @@ int main() {
                     provinces.drawBorders();
                 }
             }
+
+            // 2b. Routes (lignes entre villes voisines d'une meme civ) + villes (points).
+            glEnable(GL_DEPTH_TEST);
+            glDepthMask(GL_FALSE);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            if (roadVertCount > 0) {
+                glLineWidth(1.0f);
+                borderShader.bind();
+                borderShader.setMat4("uModel", planetModel);
+                borderShader.setMat4("uViewProj", viewProj);
+                borderShader.setVec3("uColor", glm::vec3(0.45f, 0.32f, 0.16f)); // route
+                glBindVertexArray(roadVao);
+                glDrawArrays(GL_LINES, 0, roadVertCount);
+                glBindVertexArray(0);
+            }
+            if (cityCount > 0) {
+                glEnable(GL_PROGRAM_POINT_SIZE);
+                cityShader.bind();
+                cityShader.setMat4("uModel", planetModel);
+                cityShader.setMat4("uViewProj", viewProj);
+                glBindVertexArray(cityVao);
+                glDrawArrays(GL_POINTS, 0, cityCount);
+                glBindVertexArray(0);
+                glDisable(GL_PROGRAM_POINT_SIZE);
+            }
+            glDisable(GL_BLEND);
+            glDepthMask(GL_TRUE);
 
             float camDist = glm::length(camPos);
 

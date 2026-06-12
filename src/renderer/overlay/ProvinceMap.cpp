@@ -268,8 +268,11 @@ void ProvinceMap::pick(const glm::vec3& dir, int& province, int& civ) const {
 }
 
 glm::vec3 ProvinceMap::civColor(int civ) const {
-    if (civ < 0 || civ >= static_cast<int>(m_civColors.size())) return glm::vec3(1.0f);
-    return m_civColors[civ];
+    if (civ < 0) return glm::vec3(1.0f);
+    // Couleur procedurale (teinte par nombre d'or) -> valable pour toute civ,
+    // y compris celles nees dynamiquement d'une revolte.
+    float h = std::fmod(static_cast<float>(civ) * 0.61803398f, 1.0f);
+    return hsv2rgb(h, 0.55f, 0.85f);
 }
 
 int ProvinceMap::provinceCiv(int province) const {

@@ -308,8 +308,14 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **Commerce, migration, événements, stabilité** ne concernent plus que les provinces habitées (aucun échange avec le vide)
 - *Validé : 75 provinces possédées toutes peuplées, 326 terres sauvages à population nulle*
 
-## Prochaine étape — Phase 12+
+### Sécessions & villes ✅
+- **Révoltes = indépendance** : une province révoltée assez peuplée **proclame une nouvelle civilisation** (`SimulationWorld::secede`), en **guerre contre son ancien maître** ; les matrices civ×civ (opinions, guerres) s'agrandissent dynamiquement (jusqu'à 40 civs). Des sécessions en chaîne sont possibles (une civ née d'une révolte peut elle-même se fragmenter)
+- **Villes** : chaque province possédée porte une **ville** rendue par un **point** sur le globe, dont la taille suit la population (Village → Bourg → Ville → Métropole) — [city.frag](shaders/city.frag) ; stats affichées dans le panneau Contexte
+- **Routes** : réseau de **lignes** reliant les villes voisines d'une même civilisation
+- Couleurs de civilisation désormais **procédurales** (teinte par nombre d'or) → valables pour les civs nées dynamiquement
+
+## Prochaine étape
 
 - **Cultures & langues** comme barrières au commerce et à la diplomatie.
-- **Naissance de nouvelles civilisations** depuis des provinces révoltées populeuses.
+- **Croissance des villes** indépendante des provinces, urbanisation, spécialisation.
 - **Multi-planètes** et endgame spatial — cf. [GamePlan.md](GamePlan.md).

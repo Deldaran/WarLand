@@ -291,6 +291,40 @@ void SimulationWorld::tickTech(double days) {
     }
 }
 
+int SimulationWorld::secede(int formerOwner) {
+    constexpr int kMaxCiv = 40;
+    if (m_civCount >= kMaxCiv) return -1;
+    int oldC = m_civCount;
+    int newC = oldC + 1;
+    int newId = oldC;
+
+    // Reconstruction des matrices civ x civ avec le nouveau pas.
+    std::vector<float> op(newC * newC, 0.0f);
+    std::vector<char> war(newC * newC, 0);
+    for (int a = 0; a < oldC; ++a)
+        for (int b = 0; b < oldC; ++b) {
+            op[a * newC + b] = m_opinion[a * oldC + b];
+            war[a * newC + b] = m_warState[a * oldC + b];
+        }
+    std::uniform_real_distribution<float> r(-20.0f, 20.0f);
+    for (int b = 0; b < oldC; ++b) {
+        float v = (b == formerOwner) ? -75.0f : r(m_rng); // hostile envers l'ancien maitre
+        op[newId * newC + b] = v;
+        op[b * newC + newId] = v;
+        char w = (b == formerOwner) ? 1 : 0;              // guerre d'independance
+        war[newId * newC + b] = w;
+        war[b * newC + newId] = w;
+    }
+    m_opinion = std::move(op);
+    m_warState = std::move(war);
+
+    m_civPopulation.resize(newC, 0.0);
+    m_civTech.resize(newC, formerOwner >= 0 ? m_civTech[formerOwner] * 0.5 : 0.0);
+    m_civProvinceCount.resize(newC, 0);
+    m_civCount = newC;
+    return newId;
+}
+
 void SimulationWorld::tickExpansion(double days, int year) {
     if (m_civCount < 1) return;
     const size_t n = m_byProvince.size();
@@ -425,9 +459,22 @@ void SimulationWorld::tickExpansion(double days, int year) {
                      + " a civ " + std::to_string(c.oldOwner), 2);
             m_registry.remove<CAffliction>(e);
         } else if (c.flip == 2) {
-            // Revolte : la population fuit vers les provinces voisines de
-            // l'ancien empire ; la province se vide.
-            double leaving = m_registry.get<CPopulation>(e).count;
+            double pop = m_registry.get<CPopulation>(e).count;
+            // Province assez peuplee -> elle proclame son INDEPENDANCE (nouvelle
+            // civilisation, en guerre contre son ancien maitre).
+            int newCiv = (pop > 3000.0) ? secede(c.oldOwner) : -1;
+            if (newCiv >= 0) {
+                pr.civ = newCiv;
+                pr.control = 45.0;
+                pr.contender = -1;
+                m_registry.remove<CAffliction>(e);
+                logEvent(year, "Independance : civ " + std::to_string(newCiv)
+                         + " nait de la revolte (province #" + std::to_string(pr.id)
+                         + ", ex civ " + std::to_string(c.oldOwner) + ")", 2);
+                continue; // appartenance deja fixee
+            }
+            // Sinon : revolte simple -> la population fuit, la province se vide.
+            double leaving = pop;
             std::vector<entt::entity> dest;
             for (int q : m_neighbors[p]) {
                 entt::entity eq = m_byProvince[q];

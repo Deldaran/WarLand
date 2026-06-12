@@ -115,6 +115,7 @@ private:
     std::deque<EventRecord> m_events;
 
     void recomputeAggregates();
+    int secede(int formerOwner); // cree une nouvelle civ (revolte) ; -1 si plafond
     void exchangeBetweenProvinces(double days); // commerce + migration
     void tickDiplomacy(double days, int year);
     void tickTech(double days);
