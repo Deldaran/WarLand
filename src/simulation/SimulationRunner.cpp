@@ -91,9 +91,13 @@ void SimulationRunner::run() {
             m_world.tick(days, m_year, m_year * 365.0 + m_dayOfYear);
         }
 
-        // Publication de l'instantane (copie courte sous mutex).
-        Snapshot snap = buildSnapshot(m_year);
-        {
+        // Publication de l'instantane throttlee a ~30 Hz : inutile de
+        // reconstruire/copier 900 provinces a 100 Hz (le rendu n'en a pas besoin),
+        // ca reduit la charge CPU et la contention avec le thread de rendu.
+        m_publishAccum += dt;
+        if (m_publishAccum >= 0.033) {
+            m_publishAccum = 0.0;
+            Snapshot snap = buildSnapshot(m_year);
             std::lock_guard<std::mutex> lock(m_mutex);
             m_published = std::move(snap);
         }

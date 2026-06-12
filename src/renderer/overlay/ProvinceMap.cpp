@@ -67,6 +67,7 @@ ProvinceMap::ProvinceMap(const PlanetMesh& planet, const Params& params) {
 }
 
 ProvinceMap::~ProvinceMap() {
+    if (m_provColorTex) glDeleteTextures(1, &m_provColorTex);
     if (m_borderVbo) glDeleteBuffers(1, &m_borderVbo);
     if (m_borderVao) glDeleteVertexArrays(1, &m_borderVao);
     if (m_ebo) glDeleteBuffers(1, &m_ebo);
@@ -108,6 +109,22 @@ void ProvinceMap::build(const PlanetMesh& planet, const Params& params) {
     m_vertexProvince.resize(dirs.size());
     m_overlayPositions.resize(dirs.size());
     m_triIndices.assign(indices.begin(), indices.end());
+
+    // Liste d'aretes uniques (dedupliquee une seule fois) -> rebuildBorders rapide.
+    {
+        std::unordered_set<uint64_t> seenE;
+        auto add = [&](uint32_t a, uint32_t b) {
+            if (seenE.insert(edgeKey(a, b)).second) {
+                m_edges.push_back(a);
+                m_edges.push_back(b);
+            }
+        };
+        for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+            add(indices[i], indices[i + 1]);
+            add(indices[i + 1], indices[i + 2]);
+            add(indices[i + 2], indices[i]);
+        }
+    }
 
     std::vector<double> elevSum(params.provinces, 0.0);
     std::vector<double> latSum(params.provinces, 0.0);
@@ -194,42 +211,42 @@ void ProvinceMap::build(const PlanetMesh& planet, const Params& params) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t),
                  indices.data(), GL_STATIC_DRAW);
 
-    const GLsizei stride = 7 * sizeof(float);
+    // VBO STATIQUE : position + id de province (jamais re-uploade). La couleur
+    // vient d'une texture mise a jour a la place (cheap) -> pas de gros buffer
+    // re-specifie chaque rafraichissement (evite les pics de synchro GPU).
+    std::vector<float> vbuf;
+    vbuf.reserve(m_vertexProvince.size() * 4);
+    for (size_t i = 0; i < m_vertexProvince.size(); ++i) {
+        const glm::vec3& p = m_overlayPositions[i];
+        vbuf.insert(vbuf.end(), {p.x, p.y, p.z, static_cast<float>(m_vertexProvince[i])});
+    }
+    const GLsizei stride = 4 * sizeof(float);
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    glBufferData(GL_ARRAY_BUFFER, vbuf.size() * sizeof(float), vbuf.data(), GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
 
     glBindVertexArray(0);
 
-    // Coloration politique initiale.
+    // Texture 1D (provinceCount x 1) des couleurs par province.
+    glGenTextures(1, &m_provColorTex);
+    glBindTexture(GL_TEXTURE_2D, m_provColorTex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, m_provinceCount, 1, 0, GL_RGB, GL_FLOAT, nullptr);
+
     applyPoliticalColors();
 }
 
-void ProvinceMap::uploadInterleaved(const std::vector<glm::vec3>& vertexColors) {
-    std::vector<float> buffer;
-    buffer.reserve(m_vertexProvince.size() * 7); // pos(3) + color(3) + provinceId(1)
-    for (size_t i = 0; i < m_vertexProvince.size(); ++i) {
-        const glm::vec3& p = m_overlayPositions[i];
-        const glm::vec3& c = vertexColors[i];
-        buffer.insert(buffer.end(), {p.x, p.y, p.z, c.r, c.g, c.b,
-                                     static_cast<float>(m_vertexProvince[i])});
-    }
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, buffer.size() * sizeof(float), buffer.data(), GL_DYNAMIC_DRAW);
-}
-
 void ProvinceMap::setProvinceColors(const std::vector<glm::vec3>& provinceColors) {
-    std::vector<glm::vec3> vertexColors(m_vertexProvince.size());
-    for (size_t i = 0; i < m_vertexProvince.size(); ++i) {
-        int prov = m_vertexProvince[i];
-        vertexColors[i] = (prov < static_cast<int>(provinceColors.size()))
-                              ? provinceColors[prov] : glm::vec3(1.0f);
-    }
-    uploadInterleaved(vertexColors);
+    if (static_cast<int>(provinceColors.size()) < m_provinceCount) return;
+    glBindTexture(GL_TEXTURE_2D, m_provColorTex);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_provinceCount, 1, GL_RGB, GL_FLOAT,
+                    provinceColors.data());
 }
 
 void ProvinceMap::applyPoliticalColors() {
@@ -281,6 +298,8 @@ int ProvinceMap::provinceCiv(int province) const {
 }
 
 void ProvinceMap::draw() const {
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, m_provColorTex); // unite 1 = couleurs des provinces
     glBindVertexArray(m_vao);
     glDrawElements(GL_TRIANGLES, m_indexCount, GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);
@@ -294,30 +313,23 @@ void ProvinceMap::drawBorders() const {
 }
 
 void ProvinceMap::rebuildBorders(const std::vector<int>& owner) {
-    std::unordered_set<uint64_t> seen;
-    std::vector<float> bverts;
-    auto consider = [&](int a, int b) {
+    // Itere la liste d'aretes uniques precalculee (pas de hashset par frame).
+    static std::vector<float> bverts; // reutilise (evite les reallocations)
+    bverts.clear();
+    for (size_t e = 0; e + 1 < m_edges.size(); e += 2) {
+        int a = m_edges[e], b = m_edges[e + 1];
         int oa = owner[m_vertexProvince[a]];
         int ob = owner[m_vertexProvince[b]];
-        if (oa == ob) return;
-        if (oa == -2 || ob == -2) return; // pas de frontiere le long des cotes
-        uint64_t key = edgeKey(a, b);
-        if (!seen.insert(key).second) return;
+        if (oa == ob || oa == -2 || ob == -2) continue;
         glm::vec3 pa = m_overlayPositions[a] * 1.0015f;
         glm::vec3 pb = m_overlayPositions[b] * 1.0015f;
         bverts.insert(bverts.end(), {pa.x, pa.y, pa.z, pb.x, pb.y, pb.z});
-    };
-    for (size_t i = 0; i + 2 < m_triIndices.size(); i += 3) {
-        int v0 = m_triIndices[i], v1 = m_triIndices[i + 1], v2 = m_triIndices[i + 2];
-        consider(v0, v1);
-        consider(v1, v2);
-        consider(v2, v0);
     }
     m_borderVertexCount = static_cast<int>(bverts.size() / 3);
 
     glBindBuffer(GL_ARRAY_BUFFER, m_borderVbo);
     glBufferData(GL_ARRAY_BUFFER, bverts.size() * sizeof(float),
-                 bverts.data(), GL_DYNAMIC_DRAW);
+                 bverts.empty() ? nullptr : bverts.data(), GL_DYNAMIC_DRAW);
 }
 
 } // namespace wl

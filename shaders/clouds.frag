@@ -42,7 +42,7 @@ float vnoise(vec3 x) {
 
 float fbm(vec3 p) {
     float s = 0.0, a = 0.5;
-    for (int i = 0; i < 4; ++i) { s += a * vnoise(p); p *= 2.0; a *= 0.5; }
+    for (int i = 0; i < 3; ++i) { s += a * vnoise(p); p *= 2.0; a *= 0.5; }
     return s;
 }
 
@@ -72,6 +72,7 @@ float cloudDensity(vec3 pos, out float cover) {
     float lon = atan(pdir.z, pdir.x);
     vec2 uv = vec2((lon + PI) / (2.0 * PI), (lat + PI * 0.5) / PI);
     cover = texture(uCloudTex, uv).r; // couverture simulee (cycle de l'eau)
+    if (cover < 0.02) return 0.0;      // ciel clair -> on saute le bruit (perf)
 
     // Detail haute frequence : casse la couverture en volutes.
     vec3 sp = pdir * 9.0 + vec3(uTime * 0.0015, 0.0, 0.0);
@@ -105,9 +106,8 @@ void main() {
         float dens = cloudDensity(pos, cover);
         if (dens > 0.001) {
             float lc;
-            float ld = cloudDensity(pos + uSunDir * 0.02, lc)
-                     + cloudDensity(pos + uSunDir * 0.05, lc);
-            float light = exp(-ld * 2.0);
+            float ld = cloudDensity(pos + uSunDir * 0.035, lc); // 1 echantillon (perf)
+            float light = exp(-ld * 3.0);
             float a = dens * dt * uDensity;
             // Nuages epais (forte couverture) = plus sombres (orage).
             vec3 baseCol = mix(vec3(1.0), vec3(0.28, 0.30, 0.36), smoothstep(0.5, 1.0, cover));

@@ -63,11 +63,11 @@ public:
 
 private:
     void build(const PlanetMesh& planet, const Params& params);
-    void uploadInterleaved(const std::vector<glm::vec3>& vertexColors);
 
     unsigned int m_vao = 0;
     unsigned int m_vbo = 0;
     unsigned int m_ebo = 0;
+    unsigned int m_provColorTex = 0; // couleur par province (maj cheap, pas le VBO)
     int m_indexCount = 0;
 
     unsigned int m_borderVao = 0;
@@ -87,6 +87,7 @@ private:
     std::vector<int> m_vertexProvince;
     std::vector<glm::vec3> m_overlayPositions; // positions deja surelevees
     std::vector<unsigned int> m_triIndices;    // connectivite (pour les frontieres)
+    std::vector<unsigned int> m_edges;         // aretes uniques (2 sommets/arete)
 };
 
 } // namespace wl

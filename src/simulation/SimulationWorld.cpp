@@ -246,6 +246,7 @@ void SimulationWorld::tick(double days, int year, double timeDays) {
 
         if (stock.food >= 0.0) {
             // Surplus -> croissance proportionnelle au ratio de surplus.
+            pop.starving = false;
             double ratio = balance / (foodCons + 1.0);
             double growthPerDay = 0.0005 * std::clamp(ratio, 0.0, 1.0);
             pop.count = workers * std::pow(1.0 + growthPerDay, days);
@@ -253,6 +254,7 @@ void SimulationWorld::tick(double days, int year, double timeDays) {
             stock.food = std::min(stock.food, foodCons * 120.0);
         } else {
             // Penurie : le stock est vide, la famine reduit la population.
+            pop.starving = true;
             double deficit = -stock.food;
             stock.food = 0.0;
             double deathPerDay = std::min(0.004, 0.004 * deficit / (foodCons * days + 1.0));
@@ -696,7 +698,7 @@ void SimulationWorld::recomputeAggregates() {
         total += pop.count;
         maxPop = std::max(maxPop, pop.count);
         ++inhabited;
-        if (pop.lastFoodBalance >= 0.0) ++healthy;
+        if (!pop.starving) ++healthy; // stabilite = pas en vraie famine (stock vide)
         if (prov.civ < m_civCount) {
             m_civPopulation[prov.civ] += pop.count;
             ++m_civProvinceCount[prov.civ];

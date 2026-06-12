@@ -33,6 +33,7 @@ struct CProvince {
 struct CPopulation {
     double count = 0.0;
     double lastFoodBalance = 0.0; // bilan alimentaire du dernier tick (>=0 = ok)
+    bool starving = false;        // vraie famine (stock vide + deficit)
 };
 
 // Stocks de ressources (unites abstraites).

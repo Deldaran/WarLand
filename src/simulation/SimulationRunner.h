@@ -64,6 +64,7 @@ private:
 
     int m_year = -3000;
     double m_dayOfYear = 0.0;
+    double m_publishAccum = 0.0;
 
     SimulationWorld m_world;
     std::thread m_thread;

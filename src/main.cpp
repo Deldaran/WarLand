@@ -488,7 +488,7 @@ int main() {
                                 : layers.politique  ? OverlayMode::Political
                                                     : OverlayMode::None;
             heatTimer += dt;
-            bool refresh = (desired != overlayMode) || heatTimer >= 0.30;
+            bool refresh = (desired != overlayMode) || heatTimer >= 0.5;
             if (desired != OverlayMode::None && !snap.provinces.empty() && refresh) {
                 int count = std::min(provinces.provinceCount(),
                                      static_cast<int>(snap.provinces.size()));
@@ -528,7 +528,7 @@ int main() {
 
             // --- Reconstruction des villes (points) et routes (lignes) ---
             cityTimer += dt;
-            if (!snap.provinces.empty() && cityTimer >= 0.3) {
+            if (!snap.provinces.empty() && cityTimer >= 0.5) {
                 cityTimer = 0.0;
                 int count = std::min(provinces.provinceCount(),
                                      static_cast<int>(snap.provinces.size()));
@@ -637,6 +637,7 @@ int main() {
                 overlayShader.setVec3("uSunDir", sunDir);
                 overlayShader.setFloat("uAlpha", 0.55f);
                 overlayShader.setFloat("uSelected", static_cast<float>(selectedProvince));
+                overlayShader.setInt("uProvColor", 1);
                 provinces.draw();
                 glDisable(GL_BLEND);
                 glDepthMask(GL_TRUE);
@@ -721,12 +722,12 @@ int main() {
                                  GL_RED, GL_FLOAT, snap.cloud.data());
                     cloudTexW = snap.cloudW; cloudTexH = snap.cloudH;
                     cloudUploadTimer = 0.0;
-                } else if (cloudUploadTimer >= 0.2) {
+                } else if (cloudUploadTimer >= 0.4) {
                     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, snap.cloudW, snap.cloudH,
                                     GL_RED, GL_FLOAT, snap.cloud.data());
                     cloudUploadTimer = 0.0;
                 }
-                int cloudSteps = camDist > 6.0f ? 18 : (camDist > 3.0f ? 32 : 48);
+                int cloudSteps = camDist > 6.0f ? 8 : (camDist > 3.0f ? 12 : 18);
                 glm::mat4 cloudModel = glm::scale(glm::mat4(1.0f), glm::vec3(kCloudDrawRadius));
                 glDisable(GL_DEPTH_TEST);
                 glDepthMask(GL_FALSE);
