@@ -173,6 +173,8 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
                 ImGui::Text("Biome : %s", wl::SimulationWorld::biomeName(st.biome));
                 if (st.ocean) {
                     ImGui::TextDisabled("Province oceanique (inhabitee)");
+                } else if (st.civ < 0) {
+                    ImGui::TextDisabled("Terre inhabitee");
                 } else {
                     ImGui::Text("Population : %s", formatNumber(st.population).c_str());
                     if (st.foodBalance >= 0.0)

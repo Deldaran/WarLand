@@ -290,8 +290,16 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **Instabilité** : chaque province subit une pression de révolte croissant avec la **taille de l'empire** (`0.05·nbProvinces/jour`) et la **famine** ; si l'emprise tombe à 0 sans conquérant, la province **se révolte et redevient sauvage** (loguée dans la timeline)
 - Résultat : les empires **croissent puis plafonnent**, perdent leurs provinces périphériques mal tenues, et le monde garde des terres sauvages — *validé : ~27/97 colonisées à 10 ans, ~56/97 à 32 ans, tailles variées 3–14*
 
-## Prochaine étape — Phase 11+
+### Phase 11 — Cohérence : la population suit les États ✅
+- **La population n'existe que dans les provinces possédées** : les terres sauvages sont **vides** (0 habitant, 0 stock, non simulées) — plus de population « hors-sol »
+- **Colonisation = installation de colons** : prendre une terre sauvage y **transfère des colons** prélevés sur les provinces voisines du colonisateur (+ un noyau de base) → la population se *déplace*, elle n'apparaît pas par magie
+- **Conquête** : la population reste sur place et change de souverain
+- **Révolte = exode** : la population **fuit vers les provinces voisines de l'empire** (réfugiés) et la province se vide
+- **Commerce, migration, événements, stabilité** ne concernent plus que les provinces habitées (aucun échange avec le vide)
+- *Validé : 75 provinces possédées toutes peuplées, 326 terres sauvages à population nulle*
+
+## Prochaine étape — Phase 12+
 
 - **Cultures & langues** comme barrières au commerce et à la diplomatie.
-- **Naissance de nouvelles civilisations** depuis des terres sauvages très peuplées.
+- **Naissance de nouvelles civilisations** depuis des provinces révoltées populeuses.
 - **Multi-planètes** et endgame spatial — cf. [GamePlan.md](GamePlan.md).
