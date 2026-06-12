@@ -119,4 +119,8 @@ void Shader::setFloat(const std::string& name, float value) const {
     glUniform1f(uniformLocation(name), value);
 }
 
+void Shader::setInt(const std::string& name, int value) const {
+    glUniform1i(uniformLocation(name), value);
+}
+
 } // namespace wl

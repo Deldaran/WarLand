@@ -223,6 +223,7 @@ cmake --build build
 - **Relief procédural** par bruit FBM/Perlin, océans aplatis au niveau de la mer
 - **Coloration des biomes** par altitude (océan profond → côte → forêt → roche → neige) et latitude (calottes polaires) — [planet.frag](shaders/planet.frag)
 - **Shader d'atmosphère** : halo additif autour du limbe, plus lumineux côté soleil — [atmosphere.frag](shaders/atmosphere.frag)
+- **Nuages volumétriques** : raymarching d'un bruit 3D (FBM) dans une coquille sphérique, auto-ombrage par le soleil, **LOD** (18/32/48 pas selon la distance) et **fondu au zoom** (les nuages s'effacent près du sol) — [clouds.frag](shaders/clouds.frag)
 - Éclairage solaire directionnel avec cycle jour/nuit lent + spéculaire sur les océans
 
 ### Phase 2 — Overlay politique ✅ (en cours)

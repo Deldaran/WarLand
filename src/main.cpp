@@ -301,6 +301,7 @@ int main() {
         wl::Shader atmoShader;
         wl::Shader overlayShader;
         wl::Shader borderShader;
+        wl::Shader cloudShader;
         if (!planetShader.loadFromFiles(assets + "/shaders/planet.vert",
                                         assets + "/shaders/planet.frag") ||
             !atmoShader.loadFromFiles(assets + "/shaders/atmosphere.vert",
@@ -308,10 +309,17 @@ int main() {
             !overlayShader.loadFromFiles(assets + "/shaders/overlay.vert",
                                          assets + "/shaders/overlay.frag") ||
             !borderShader.loadFromFiles(assets + "/shaders/border.vert",
-                                        assets + "/shaders/border.frag")) {
+                                        assets + "/shaders/border.frag") ||
+            !cloudShader.loadFromFiles(assets + "/shaders/atmosphere.vert",
+                                       assets + "/shaders/clouds.frag")) {
             std::cerr << "[WarLand] Echec du chargement des shaders\n";
             return 1;
         }
+
+        // Parametres de la coquille nuageuse.
+        const float kCloudInner = 1.045f;
+        const float kCloudOuter = 1.100f;
+        const float kCloudDrawRadius = 1.11f; // sphere de rendu (englobe la coquille)
 
         // --- Geometrie : la planete + la coque atmospherique ---
         wl::PlanetMesh::Params planetParams;
@@ -547,7 +555,40 @@ int main() {
                 }
             }
 
-            // 3. L'atmosphere (halo additif autour du limbe)
+            // 3. Nuages volumetriques (raymarching) avec LOD + fondu au zoom.
+            float camDist = glm::length(camPos);
+            float cloudFade = glm::smoothstep(1.25f, 2.2f, camDist); // 0 pres du sol
+            if (cloudFade > 0.001f) {
+                // LOD : moins de pas de loin, plus de detail de pres.
+                int cloudSteps = camDist > 6.0f ? 18 : (camDist > 3.0f ? 32 : 48);
+                glm::mat4 cloudModel = glm::scale(glm::mat4(1.0f), glm::vec3(kCloudDrawRadius));
+                glDisable(GL_DEPTH_TEST);
+                glDepthMask(GL_FALSE);
+                glEnable(GL_CULL_FACE);
+                glCullFace(GL_BACK); // une seule couche de fragments a raymarcher
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                cloudShader.bind();
+                cloudShader.setMat4("uModel", cloudModel);
+                cloudShader.setMat4("uViewProj", viewProj);
+                cloudShader.setVec3("uCameraPos", camPos);
+                cloudShader.setVec3("uSunDir", sunDir);
+                cloudShader.setFloat("uTime", static_cast<float>(now));
+                cloudShader.setInt("uSteps", cloudSteps);
+                cloudShader.setFloat("uFade", cloudFade);
+                cloudShader.setFloat("uPlanetRadius", 1.0f);
+                cloudShader.setFloat("uCloudInner", kCloudInner);
+                cloudShader.setFloat("uCloudOuter", kCloudOuter);
+                cloudShader.setFloat("uCoverage", 0.42f);
+                cloudShader.setFloat("uDensity", 90.0f);
+                atmosphere.draw(); // sphere lisse reutilisee, mise a l'echelle
+                glDisable(GL_BLEND);
+                glDisable(GL_CULL_FACE);
+                glEnable(GL_DEPTH_TEST);
+                glDepthMask(GL_TRUE);
+            }
+
+            // 4. L'atmosphere (halo additif autour du limbe)
             glm::mat4 atmoModel = glm::scale(glm::mat4(1.0f), glm::vec3(atmoScale));
             glEnable(GL_CULL_FACE);
             glCullFace(GL_FRONT);          // on rend la face interne lointaine -> halo
