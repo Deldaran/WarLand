@@ -199,7 +199,7 @@ void SimulationWorld::tick(double days, int year, double timeDays) {
     const double season = std::fmod(timeDays, 365.0) / 365.0;  // 0..1 sur l'annee
 
     // Cycle de l'eau : evaporation -> vents -> precipitation (deserts, etc.).
-    m_climate.step(days, season);
+    m_climate.step(days, season, timeDays);
 
     auto view = m_registry.view<CProvince, CPopulation, CStock>();
     for (auto e : view) {

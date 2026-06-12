@@ -16,7 +16,7 @@ class ProvinceMap;
 class Climate {
 public:
     void init(const ProvinceMap& provinces, float seaLevel, int width = 128, int height = 64);
-    void step(double days, double season);
+    void step(double days, double season, double timeDays);
 
     // Pluie courante (0 sec .. 1 tres humide) a une direction donnee.
     float rainfallAt(const glm::vec3& dir) const;

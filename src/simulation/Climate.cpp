@@ -77,10 +77,11 @@ float Climate::sampleBilinear(const std::vector<float>& f, float fi, float fj) c
     return glm::mix(glm::mix(a, b, tx), glm::mix(c, d, tx), ty);
 }
 
-void Climate::step(double days, double season) {
+void Climate::step(double days, double season, double timeDays) {
     if (m_w == 0) return;
     days = std::min(days, 5.0); // garde-fou
     float fd = static_cast<float>(days);
+    float tp = static_cast<float>(std::fmod(timeDays, 100000.0)); // phase des ondes
 
     // 1. Evaporation : les oceans chauds chargent l'air en humidite.
     for (int idx = 0; idx < m_w * m_h; ++idx) {
@@ -89,13 +90,23 @@ void Climate::step(double days, double season) {
         m_hum[idx] = std::min(2.0f, m_hum[idx] + evap);
     }
 
-    // 2. Advection semi-lagrangienne par les vents zonaux (+ leger mélange).
+    // 2. Advection semi-lagrangienne. Vents zonaux de base + ONDES VOYAGEUSES
+    // (perturbations dependant du temps) qui creent des systemes meteo mobiles :
+    // les fronts se forment, se deplacent et se dissipent au lieu de se figer.
+    constexpr float TWO_PI = 6.2831853f;
     m_tmp = m_hum;
     for (int j = 0; j < m_h; ++j) {
-        float u = zonalWind(m_latN[index(0, j)]); // cellules/jour
+        float latN = m_latN[index(0, j)];
+        float baseU = zonalWind(latN);
         for (int i = 0; i < m_w; ++i) {
+            float lon = ((i + 0.5f) / m_w) * TWO_PI; // 0..2pi
+            // Trains d'ondes (Rossby-like) se propageant en longitude avec le temps.
+            float uPert = 0.6f * std::sin(4.0f * lon + 0.05f * tp + latN * 3.0f);
+            float v = 0.7f * std::sin(3.0f * lon + 0.04f * tp + latN * 2.0f)
+                    + 0.4f * std::sin(6.0f * lon - 0.06f * tp);
+            float u = baseU + uPert;
             float srcI = i - u * fd;
-            float srcJ = j - 0.1f * fd; // legere derive
+            float srcJ = j - v * fd;
             m_hum[index(i, j)] = sampleBilinear(m_tmp, srcI, srcJ);
         }
     }
