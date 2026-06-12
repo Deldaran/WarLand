@@ -78,6 +78,19 @@ const char* weatherLabel(double rain) {
     return "nuageux";
 }
 
+// Couleur d'une culture/langue (palette distincte des couleurs de civ).
+glm::vec3 cultureColor(int c) {
+    if (c < 0) return glm::vec3(0.25f);
+    float h = std::fmod(0.05f + static_cast<float>(c) * 0.16f, 1.0f);
+    float s = 0.5f, v = 0.9f;
+    float i = std::floor(h * 6.0f), f = h * 6.0f - i;
+    float p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+    switch (static_cast<int>(i) % 6) {
+        case 0: return {v, t, p}; case 1: return {q, v, p}; case 2: return {p, v, t};
+        case 3: return {p, q, v}; case 4: return {t, p, v}; default: return {v, p, q};
+    }
+}
+
 // Rampe de couleur pour la heatmap de population (bleu -> rouge).
 glm::vec3 heatColor(float t) {
     t = std::clamp(t, 0.0f, 1.0f);
@@ -157,8 +170,8 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
         ImGui::Checkbox("Langue", &layers.langue);
         ImGui::Checkbox("Conflits", &layers.conflits);
         ImGui::Separator();
-        ImGui::TextDisabled("Couches rendues : Politique");
-        ImGui::TextDisabled("et Population (heatmap).");
+        ImGui::TextDisabled("Couches : Politique, Population,");
+        ImGui::TextDisabled("Langue (cultures).");
     }
     ImGui::End();
 
@@ -188,6 +201,11 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
                         ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoPicker,
                         ImVec2(16, 16));
                     ImGui::Text("Controle : %.0f%%", st.control);
+                    if (st.culture != st.ownerCulture)
+                        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1),
+                            "Culture %d (minorite)", st.culture);
+                    else
+                        ImGui::Text("Culture %d", st.culture);
                 }
                 ImGui::Spacing();
                 ImGui::Text("Biome : %s", wl::SimulationWorld::biomeName(st.biome));
@@ -389,8 +407,8 @@ int main() {
         wl::Camera camera(window.aspectRatio());
         LayerState layers;
 
-        // Gestion de la couche overlay (politique ou heatmap de population).
-        enum class OverlayMode { None, Political, Population };
+        // Gestion de la couche overlay (politique, population ou culture/langue).
+        enum class OverlayMode { None, Political, Population, Culture };
         OverlayMode overlayMode = OverlayMode::None;
         double heatTimer = 0.0;
         std::vector<glm::vec3> heatColors(provinces.provinceCount());
@@ -485,6 +503,7 @@ int main() {
             // --- Coloration de l'overlay selon la couche active ---
             // Politique = appartenance courante (dynamique) ; Population = heatmap.
             OverlayMode desired = layers.population ? OverlayMode::Population
+                                : layers.langue     ? OverlayMode::Culture
                                 : layers.politique  ? OverlayMode::Political
                                                     : OverlayMode::None;
             heatTimer += dt;
@@ -504,6 +523,24 @@ int main() {
                         } else {
                             heatColors[p] = provinces.civColor(st.civ);
                             ownerBuf[p] = st.civ;
+                        }
+                    }
+                    provinces.setProvinceColors(heatColors);
+                    provinces.rebuildBorders(ownerBuf);
+                } else if (desired == OverlayMode::Culture) {
+                    // Carte des cultures/langues : couleur par culture, frontieres
+                    // culturelles (les minorites conquises ressortent).
+                    for (int p = 0; p < count; ++p) {
+                        const auto& st = snap.provinces[p];
+                        if (st.ocean) {
+                            heatColors[p] = glm::vec3(0.05f, 0.09f, 0.18f);
+                            ownerBuf[p] = -2;
+                        } else if (st.civ < 0) {
+                            heatColors[p] = glm::vec3(0.20f, 0.20f, 0.22f); // sauvage
+                            ownerBuf[p] = -1;
+                        } else {
+                            heatColors[p] = cultureColor(st.culture);
+                            ownerBuf[p] = st.culture;
                         }
                     }
                     provinces.setProvinceColors(heatColors);

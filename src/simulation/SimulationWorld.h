@@ -36,6 +36,8 @@ public:
         EventType affliction = EventType::Drought;
         double control = 0.0;  // emprise du proprietaire (0..100)
         double rainfall = 0.5; // meteo locale (0 sec .. 1 orage)
+        int culture = -1;      // culture des habitants
+        int ownerCulture = -1; // culture du proprietaire (minorite si differente)
     };
 
     // Entree du journal historique (timeline).
@@ -99,6 +101,8 @@ private:
     double m_stability = 1.0;
 
     int m_civCount = 0;
+    int m_numCultures = 0;               // nombre de cultures/langues
+    std::vector<int> m_civCulture;       // culture dominante de chaque civ
     std::vector<float> m_opinion;        // matrice civ x civ (a plat)
     std::vector<double> m_civPopulation; // population totale par civ
     std::vector<double> m_civTech;       // points de technologie par civ
@@ -115,7 +119,7 @@ private:
     std::deque<EventRecord> m_events;
 
     void recomputeAggregates();
-    int secede(int formerOwner); // cree une nouvelle civ (revolte) ; -1 si plafond
+    int secede(int formerOwner, int culture); // cree une nouvelle civ (revolte) ; -1 si plafond
     void exchangeBetweenProvinces(double days); // commerce + migration
     void tickDiplomacy(double days, int year);
     void tickTech(double days);

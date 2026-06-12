@@ -314,8 +314,14 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **Routes** : réseau de **lignes** reliant les villes voisines d'une même civilisation
 - Couleurs de civilisation désormais **procédurales** (teinte par nombre d'or) → valables pour les civs nées dynamiquement
 
+### Cultures & langues ✅
+- Chaque province a une **culture** (langue) ; les **colons propagent la leur** sur les terres vierges, mais les provinces **conquises gardent leur culture** → minorités sous domination étrangère
+- **Instabilité culturelle** : une province de culture différente de son propriétaire est **plus rebelle** → les empires multiculturels se **fragmentent selon les lignes culturelles** (révoltes/sécessions), chaque sécession fondant une nation de sa propre langue
+- **Barrière de la langue en diplomatie** : les civilisations de **même culture se rapprochent**, les cultures différentes **s'éloignent** (biais sur l'opinion)
+- **Couche « Langue »** : colore le globe par culture (palette dédiée) + **frontières culturelles** faisant ressortir les minorités — panneau Contexte indique la culture et l'étiquette *(minorité)*
+
 ## Prochaine étape
 
-- **Cultures & langues** comme barrières au commerce et à la diplomatie.
 - **Croissance des villes** indépendante des provinces, urbanisation, spécialisation.
+- **Commerce** influencé par la langue (barrière culturelle aux échanges).
 - **Multi-planètes** et endgame spatial — cf. [GamePlan.md](GamePlan.md).

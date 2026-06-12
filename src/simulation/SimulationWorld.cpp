@@ -130,6 +130,11 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
     m_civPopulation.assign(m_civCount, 0.0);
     m_civTech.assign(m_civCount, 0.0);
     m_civProvinceCount.assign(m_civCount, 0);
+
+    // Cultures/langues : une par region d'origine ; chaque civ parle la sienne.
+    m_numCultures = m_civCount;
+    m_civCulture.assign(m_civCount, 0);
+    for (int c = 0; c < m_civCount; ++c) m_civCulture[c] = c;
     std::uniform_real_distribution<float> initOp(-20.0f, 20.0f);
     for (int a = 0; a < m_civCount; ++a) {
         for (int b = a + 1; b < m_civCount; ++b) {
@@ -151,8 +156,9 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
         Biome biome = deriveBiome(elev, lat, seaLevel);
         bool ocean = (biome == Biome::Ocean);
 
-        m_registry.emplace<CProvince>(e, CProvince{p, -1, biome, ocean, 0.0, -1});
-        m_registry.emplace<CPopulation>(e, CPopulation{0.0, 0.0}); // vide
+        int region = provinces.provinceCiv(p); // culture native = region d'origine
+        m_registry.emplace<CProvince>(e, CProvince{p, -1, biome, ocean, 0.0, -1, 0.5, region});
+        m_registry.emplace<CPopulation>(e, CPopulation{0.0, 0.0, false}); // vide
         m_registry.emplace<CStock>(e, CStock{0.0, 0.0, 0.0});
         if (!ocean) m_inhabited.push_back(e);
     }
@@ -293,7 +299,7 @@ void SimulationWorld::tickTech(double days) {
     }
 }
 
-int SimulationWorld::secede(int formerOwner) {
+int SimulationWorld::secede(int formerOwner, int culture) {
     constexpr int kMaxCiv = 40;
     if (m_civCount >= kMaxCiv) return -1;
     int oldC = m_civCount;
@@ -323,6 +329,7 @@ int SimulationWorld::secede(int formerOwner) {
     m_civPopulation.resize(newC, 0.0);
     m_civTech.resize(newC, formerOwner >= 0 ? m_civTech[formerOwner] * 0.5 : 0.0);
     m_civProvinceCount.resize(newC, 0);
+    m_civCulture.resize(newC, culture); // la nouvelle nation parle la langue de ses rebelles
     m_civCount = newC;
     return newId;
 }
@@ -340,6 +347,7 @@ void SimulationWorld::tickExpansion(double days, int year) {
     // Cohesion (Phase 10) : un empire trop grand ou affame se desagrege.
     constexpr double kUnrestPerProv = 0.05; // instabilite par province possedee / jour
     constexpr double kFamineUnrest  = 0.6;  // une famine attise la revolte
+    constexpr double kCultureUnrest = 0.5;  // minorite de culture etrangere -> agitation
 
     // Passe 1 : force projetee par chaque province (population, techno, usure).
     // L'usure imperiale (1/(1+0.08*n)) penalise fortement les grands empires :
@@ -394,9 +402,11 @@ void SimulationWorld::tickExpansion(double days, int year) {
 
         Change ch{ownerN, controlN, contender, 0, ownerN};
         if (ownerN >= 0) {
-            // Instabilite : croit avec la taille de l'empire et la famine.
+            // Instabilite : croit avec la taille de l'empire, la famine, et la
+            // presence d'une minorite culturelle (province de culture etrangere).
             double unrest = kUnrestPerProv * m_civProvinceCount[ownerN];
             if (foodBalanceN < 0.0) unrest += kFamineUnrest;
+            if (pr.culture != m_civCulture[ownerN]) unrest += kCultureUnrest;
 
             double dc = (kBaseRegen + friendly * kFriendly
                          - hostile * kHostile - unrest) * days;
@@ -453,6 +463,9 @@ void SimulationWorld::tickExpansion(double days, int year) {
             CStock& st = m_registry.get<CStock>(e);
             st.food = seed * 0.5;
             st.materials = st.energy = 0.0;
+            // Les colons apportent leur culture sur la terre vierge.
+            if (c.owner >= 0 && c.owner < static_cast<int>(m_civCulture.size()))
+                pr.culture = m_civCulture[c.owner];
             m_registry.remove<CAffliction>(e);
         } else if (c.flip == 1) {
             // Conquete : la population reste sur place, change de souverain.
@@ -463,8 +476,8 @@ void SimulationWorld::tickExpansion(double days, int year) {
         } else if (c.flip == 2) {
             double pop = m_registry.get<CPopulation>(e).count;
             // Province assez peuplee -> elle proclame son INDEPENDANCE (nouvelle
-            // civilisation, en guerre contre son ancien maitre).
-            int newCiv = (pop > 3000.0) ? secede(c.oldOwner) : -1;
+            // civilisation de SA culture, en guerre contre son ancien maitre).
+            int newCiv = (pop > 3000.0) ? secede(c.oldOwner, pr.culture) : -1;
             if (newCiv >= 0) {
                 pr.civ = newCiv;
                 pr.control = 45.0;
@@ -514,6 +527,11 @@ void SimulationWorld::tickDiplomacy(double days, int year) {
 
             // Marche aleatoire + leger retour vers la neutralite.
             double d = noise(m_rng) * 0.4 * days - 0.01 * v * days;
+            // Barriere de la langue : meme culture rapproche, culture differente eloigne.
+            bool sameCulture = (a < static_cast<int>(m_civCulture.size())
+                                && b < static_cast<int>(m_civCulture.size())
+                                && m_civCulture[a] == m_civCulture[b]);
+            d += (sameCulture ? 0.18 : -0.10) * days;
             // Choc diplomatique occasionnel (incident ou traite).
             if (u01(m_rng) < 0.0008 * days) d += (u01(m_rng) < 0.5 ? -30.0 : 30.0);
 
@@ -731,6 +749,9 @@ SimulationWorld::ProvinceState SimulationWorld::state(int provinceId) const {
     s.foodBalance = pop.lastFoodBalance;
     s.control = prov.control;
     s.rainfall = prov.rainfall;
+    s.culture = prov.culture;
+    s.ownerCulture = (prov.civ >= 0 && prov.civ < static_cast<int>(m_civCulture.size()))
+                         ? m_civCulture[prov.civ] : prov.culture;
     if (const CAffliction* aff = m_registry.try_get<CAffliction>(e)) {
         s.afflicted = true;
         s.affliction = aff->type;

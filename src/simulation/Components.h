@@ -27,6 +27,7 @@ struct CProvince {
     double control = 0.0;  // emprise du proprietaire (0..100)
     int contender = -1;    // civ en train de coloniser une terre sauvage
     double rainfall = 0.5; // meteo locale courante (0 sec .. 1 orage/pluie)
+    int culture = -1;      // culture/langue des habitants (sticky : conquete = minorite)
 };
 
 // Population vivante de la province.
