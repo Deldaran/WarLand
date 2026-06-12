@@ -338,10 +338,12 @@ int main() {
             return 1;
         }
 
-        // Parametres de la coquille nuageuse.
+        // Parametres de la coquille nuageuse et de l'atmosphere (fine, realiste).
         const float kCloudInner = 1.045f;
         const float kCloudOuter = 1.100f;
-        const float kCloudDrawRadius = 1.11f; // sphere de rendu (englobe la coquille)
+        const float kCloudDrawRadius = 1.115f; // sphere de rendu (englobe la coquille)
+        const float kAtmoRadius = 1.115f;      // sommet de l'atmosphere (fine)
+        const float kAtmoDrawRadius = 1.13f;   // sphere de rendu de l'atmosphere
 
         // Texture du champ nuageux simule (cycle de l'eau), mise a jour chaque frame.
         GLuint cloudTex = 0;
@@ -366,9 +368,6 @@ int main() {
         atmoParams.subdivisions = 4;
         atmoParams.amplitude = 0.0f; // sphere lisse
         wl::PlanetMesh atmosphere(atmoParams);
-
-        const float atmoScale = 1.18f;
-        const glm::vec3 planetCenter(0.0f);
 
         // Couche politique : decoupage en provinces / civilisations.
         wl::ProvinceMap::Params provParams;
@@ -589,12 +588,38 @@ int main() {
                 }
             }
 
-            // 3. Nuages volumetriques (raymarching) avec LOD + fondu au zoom.
             float camDist = glm::length(camPos);
+
+            // 3. Atmosphere : fine couche realiste (liseré lumineux a l'horizon).
+            //    Dessinee AVANT les nuages pour que ceux-ci restent visibles au limbe.
+            {
+                glm::mat4 atmoModel = glm::scale(glm::mat4(1.0f), glm::vec3(kAtmoDrawRadius));
+                glDisable(GL_DEPTH_TEST);
+                glDepthMask(GL_FALSE);
+                glEnable(GL_CULL_FACE);
+                glCullFace(GL_BACK);
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_ONE, GL_ONE);   // additif (glow)
+                atmoShader.bind();
+                atmoShader.setMat4("uModel", atmoModel);
+                atmoShader.setMat4("uViewProj", viewProj);
+                atmoShader.setVec3("uCameraPos", camPos);
+                atmoShader.setVec3("uSunDir", sunDir);
+                atmoShader.setFloat("uPlanetRadius", 1.0f);
+                atmoShader.setFloat("uAtmoRadius", kAtmoRadius);
+                atmoShader.setFloat("uStrength", 2.2f);
+                atmosphere.draw();
+                glDisable(GL_BLEND);
+                glDisable(GL_CULL_FACE);
+                glEnable(GL_DEPTH_TEST);
+                glDepthMask(GL_TRUE);
+            }
+
+            // 4. Nuages volumetriques (raymarching) avec LOD + fondu au zoom.
+            //    Par-dessus l'atmosphere -> visibles aussi sur les cotes / au limbe.
             float cloudFade = glm::smoothstep(1.25f, 2.2f, camDist); // 0 pres du sol
             if (cloudFade > 0.001f && !snap.cloud.empty()) {
-                // Mise a jour de la texture nuageuse (throttlee ~5 Hz : le champ
-                // evolue lentement, inutile de re-uploader a chaque frame).
+                // Mise a jour de la texture nuageuse (throttlee ~5 Hz).
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, cloudTex);
                 cloudUploadTimer += dt;
@@ -608,13 +633,12 @@ int main() {
                                     GL_RED, GL_FLOAT, snap.cloud.data());
                     cloudUploadTimer = 0.0;
                 }
-                // LOD : moins de pas de loin, plus de detail de pres.
                 int cloudSteps = camDist > 6.0f ? 18 : (camDist > 3.0f ? 32 : 48);
                 glm::mat4 cloudModel = glm::scale(glm::mat4(1.0f), glm::vec3(kCloudDrawRadius));
                 glDisable(GL_DEPTH_TEST);
                 glDepthMask(GL_FALSE);
                 glEnable(GL_CULL_FACE);
-                glCullFace(GL_BACK); // une seule couche de fragments a raymarcher
+                glCullFace(GL_BACK);
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                 cloudShader.bind();
@@ -623,8 +647,8 @@ int main() {
                 cloudShader.setVec3("uCameraPos", camPos);
                 cloudShader.setVec3("uSunDir", sunDir);
                 cloudShader.setFloat("uTime",
-                    static_cast<float>(std::fmod(snap.timeDays, 100000.0))); // temps in-game
-                cloudShader.setFloat("uPlanetSpin", planetSpin); // nuages co-rotatifs
+                    static_cast<float>(std::fmod(snap.timeDays, 100000.0)));
+                cloudShader.setFloat("uPlanetSpin", planetSpin);
                 cloudShader.setInt("uSteps", cloudSteps);
                 cloudShader.setFloat("uFade", cloudFade);
                 cloudShader.setFloat("uPlanetRadius", 1.0f);
@@ -632,31 +656,12 @@ int main() {
                 cloudShader.setFloat("uCloudOuter", kCloudOuter);
                 cloudShader.setFloat("uDensity", 95.0f);
                 cloudShader.setInt("uCloudTex", 0);
-                atmosphere.draw(); // sphere lisse reutilisee, mise a l'echelle
+                atmosphere.draw();
                 glDisable(GL_BLEND);
                 glDisable(GL_CULL_FACE);
                 glEnable(GL_DEPTH_TEST);
                 glDepthMask(GL_TRUE);
             }
-
-            // 4. L'atmosphere (halo additif autour du limbe)
-            glm::mat4 atmoModel = glm::scale(glm::mat4(1.0f), glm::vec3(atmoScale));
-            glEnable(GL_CULL_FACE);
-            glCullFace(GL_FRONT);          // on rend la face interne lointaine -> halo
-            glDepthMask(GL_FALSE);
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_ONE, GL_ONE);   // additif
-            atmoShader.bind();
-            atmoShader.setMat4("uModel", atmoModel);
-            atmoShader.setMat4("uViewProj", viewProj);
-            atmoShader.setVec3("uCameraPos", camPos);
-            atmoShader.setVec3("uSunDir", sunDir);
-            atmoShader.setVec3("uPlanetCenter", planetCenter);
-            atmosphere.draw();
-            // restauration de l'etat
-            glDisable(GL_BLEND);
-            glDepthMask(GL_TRUE);
-            glDisable(GL_CULL_FACE);
 
             // --- Rendu UI ---
             ImGui_ImplOpenGL3_NewFrame();
