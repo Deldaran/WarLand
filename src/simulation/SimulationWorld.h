@@ -38,6 +38,8 @@ public:
         double rainfall = 0.5; // meteo locale (0 sec .. 1 orage)
         int culture = -1;      // culture des habitants
         int ownerCulture = -1; // culture du proprietaire (minorite si differente)
+        double urbanPop = 0.0; // population vivant en ville (urbanisation)
+        int specialization = 0; // type de ville (rurale, agricole, miniere...)
     };
 
     // Entree du journal historique (timeline).
@@ -77,6 +79,7 @@ public:
 
     static const char* eraName(int era);
     static int eraForTech(double tech); // indice d'ere a partir des points de techno
+    static const char* specName(int specialization); // type de ville
 
     const std::deque<EventRecord>& events() const { return m_events; }
 
@@ -95,6 +98,7 @@ private:
     std::vector<entt::entity> m_inhabited;   // provinces non oceaniques
     std::vector<std::vector<int>> m_neighbors; // graphe d'adjacence (par id)
     std::vector<glm::vec3> m_provinceDir;    // direction (repere planete-fixe)
+    std::vector<char> m_provinceCoastal;     // province bordant un ocean (port)
 
     double m_totalPopulation = 0.0;
     double m_maxProvincePopulation = 1.0;

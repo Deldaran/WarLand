@@ -214,11 +214,13 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
                 } else if (st.civ < 0) {
                     ImGui::TextDisabled("Terre inhabitee");
                 } else {
-                    const char* tier = st.population < 5000 ? "Village"
-                                     : st.population < 20000 ? "Bourg"
-                                     : st.population < 60000 ? "Ville" : "Metropole";
-                    ImGui::Text("Ville : %s", tier);
+                    const char* tier = st.urbanPop < 2000 ? "Village"
+                                     : st.urbanPop < 10000 ? "Bourg"
+                                     : st.urbanPop < 30000 ? "Ville" : "Metropole";
+                    ImGui::Text("Ville : %s (%s)", tier,
+                                wl::SimulationWorld::specName(st.specialization));
                     ImGui::Text("Population : %s", formatNumber(st.population).c_str());
+                    ImGui::Text("dont urbaine : %s", formatNumber(st.urbanPop).c_str());
                     if (st.foodBalance >= 0.0)
                         ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1), "Nourriture : surplus");
                     else
@@ -575,9 +577,9 @@ int main() {
                     if (st.ocean || st.civ < 0) continue;
                     glm::vec3 dir = provinces.provinceDir(p);
                     glm::vec3 pos = dir * 1.05f;
-                    double pop = st.population;
-                    float size = pop < 5000 ? 6.0f : pop < 20000 ? 9.0f
-                               : pop < 60000 ? 13.0f : 18.0f;
+                    double upop = st.urbanPop; // taille = population URBAINE (urbanisation)
+                    float size = upop < 2000 ? 5.0f : upop < 10000 ? 8.0f
+                               : upop < 30000 ? 12.0f : 17.0f;
                     glm::vec3 cc = glm::mix(glm::vec3(1.0f, 0.95f, 0.6f),
                                             provinces.civColor(st.civ), 0.4f);
                     cv.insert(cv.end(), {pos.x, pos.y, pos.z, size, cc.r, cc.g, cc.b});

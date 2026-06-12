@@ -32,6 +32,8 @@ const char* kEventNames[] = {"Secheresse", "Epidemie", "Recolte exceptionnelle",
 // Eres : seuils cumulatifs de points de technologie.
 const char* kEraNames[] = {"Age de pierre", "Antiquite", "Ere industrielle",
                            "Ere numerique", "Ere spatiale"};
+
+const char* kSpecNames[] = {"Rurale", "Agricole", "Miniere", "Portuaire", "Industrielle"};
 const double kEraThresholds[] = {0.0, 150.0, 600.0, 1800.0, 5000.0};
 
 // Probabilite globale qu'un choc survienne, par jour in-game.
@@ -103,6 +105,12 @@ int SimulationWorld::eraForTech(double tech) {
         if (tech >= kEraThresholds[i]) era = i;
     }
     return era;
+}
+
+const char* SimulationWorld::specName(int s) {
+    int n = static_cast<int>(sizeof(kSpecNames) / sizeof(kSpecNames[0]));
+    if (s < 0 || s >= n) return "?";
+    return kSpecNames[s];
 }
 
 void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
@@ -186,6 +194,18 @@ void SimulationWorld::init(const ProvinceMap& provinces, float seaLevel) {
             CStock& st = m_registry.get<CStock>(e);
             st.food = cap * 0.05;
             st.materials = st.energy = cap * 0.02;
+        }
+    }
+
+    // Provinces cotieres (un voisin oceanique) -> villes portuaires.
+    m_provinceCoastal.assign(n, 0);
+    for (int p = 0; p < n; ++p) {
+        for (int q : m_neighbors[p]) {
+            entt::entity eq = m_byProvince[q];
+            if (eq != entt::null && m_registry.get<CProvince>(eq).ocean) {
+                m_provinceCoastal[p] = 1;
+                break;
+            }
         }
     }
 
@@ -584,7 +604,9 @@ void SimulationWorld::exchangeBetweenProvinces(double days) {
             const CStock& stockQ = m_registry.get<CStock>(eq);
             // On n'exporte que depuis le plus riche (chaque paire traitee une fois).
             if (stock.food > stockQ.food) {
-                double share = (stock.food - stockQ.food) * tradeFrac * 0.5;
+                // Barriere de la langue : commerce reduit entre cultures differentes.
+                double cult = (prov.culture == provQ.culture) ? 1.0 : 0.5;
+                double share = (stock.food - stockQ.food) * tradeFrac * 0.5 * cult;
                 foodDelta[pid] -= share;
                 foodDelta[q] += share;
             }
@@ -752,6 +774,23 @@ SimulationWorld::ProvinceState SimulationWorld::state(int provinceId) const {
     s.culture = prov.culture;
     s.ownerCulture = (prov.civ >= 0 && prov.civ < static_cast<int>(m_civCulture.size()))
                          ? m_civCulture[prov.civ] : prov.culture;
+
+    // Urbanisation : la part de population en ville croit avec l'ere technologique.
+    int era = (prov.civ >= 0 && prov.civ < static_cast<int>(m_civTech.size()))
+                  ? eraForTech(m_civTech[prov.civ]) : 0;
+    double urbanFrac = 0.04 + 0.14 * era; // age de pierre ~4% -> ere spatiale ~60%
+    s.urbanPop = pop.count * urbanFrac;
+
+    // Specialisation de la ville selon la geographie et l'ere.
+    bool coastal = (prov.id >= 0 && prov.id < static_cast<int>(m_provinceCoastal.size()))
+                       && m_provinceCoastal[prov.id];
+    int spec;
+    if (coastal)                              spec = 3; // Portuaire
+    else if (prov.biome == Biome::Mountain)   spec = 2; // Miniere
+    else if (era >= 2 && s.urbanPop > 20000.0) spec = 4; // Industrielle
+    else if (prov.biome == Biome::Grassland || prov.biome == Biome::Forest) spec = 1; // Agricole
+    else                                      spec = 0; // Rurale
+    s.specialization = spec;
     if (const CAffliction* aff = m_registry.try_get<CAffliction>(e)) {
         s.afflicted = true;
         s.affliction = aff->type;
