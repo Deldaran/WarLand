@@ -330,7 +330,7 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - La vitesse n'est plus un multiplicateur abstrait mais des **échelles concrètes** (1 seconde réelle = …) : **Réel** (1 s), **Heure**, **Jour**, **Mois**, **Année**
 - **Curseur** par échelle : le multiplicateur se règle finement (ex. 1→24 heures/s, 1→30 jours/s) → pas seulement « heure par heure » mais « 5 heures par seconde » etc.
 - « Réel » prépare l'observation des **batailles** ; « Heure/Jour » pour le détail ; « Mois/Année » pour le long terme
-- **Rotation de la planète, jour/nuit et évolution des nuages calés sur le temps in-game** : tout ralentit en mode lent (figé en Réel) et accélère en mode rapide → la météo « vit » à la vitesse choisie
+- **Rotation de la planète + jour/nuit en temps réel** (les nuages bougent toujours visiblement, même en Réel/Heure), tandis que l'**évolution météo** (formation/déplacement des fronts via le climat) est calée sur le temps in-game → rapide en Année, quasi figée en Réel
 
 ### Vue système & voyage interplanétaire ✅
 - **Vue orbitale** : une étoile centrale + les **planètes sur leurs orbites animées** (anneaux), chaque planète éclairée par l'étoile — bouton **« Vue système »** dans la barre du haut

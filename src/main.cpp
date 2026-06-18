@@ -691,18 +691,16 @@ int main() {
             glm::mat4 viewProj = proj * view;
             glm::vec3 camPos = camera.position();
 
-            // Tout est cale sur le TEMPS IN-GAME : la rotation de la planete, le
-            // jour/nuit et l'evolution des nuages ralentissent/accelerent avec
-            // l'echelle de temps choisie (figes en "Reel", rapides en "Annee").
-            const double TWO_PI = 6.283185307;
-            // Rotation propre : ~1 tour tous les 6 jours in-game.
-            float planetSpin = static_cast<float>(std::fmod(snap.timeDays, 36000.0)
-                                                   * (TWO_PI / 6.0));
-            // Le soleil decrit un cycle annuel (saisons) -> bornage pour la precision.
-            float sunAngle = static_cast<float>(std::fmod(snap.timeDays, 365.0) / 365.0 * TWO_PI);
+            // Rotation propre de la planete + jour/nuit : TEMPS REEL, pour que les
+            // nuages bougent toujours visiblement (meme en mode lent / temps reel).
+            // L'EVOLUTION meteo (fronts, formation/dissipation des nuages) est, elle,
+            // calee sur le temps in-game via le climat -> rapide en "Annee", quasi
+            // figee en "Reel".
+            float sunAngle = static_cast<float>(now) * 0.05f;
             glm::vec3 sunDir = glm::normalize(
                 glm::vec3(std::cos(sunAngle), 0.25f, std::sin(sunAngle)));
 
+            float planetSpin = static_cast<float>(now) * 0.03f;
             glm::mat4 planetModel = glm::rotate(glm::mat4(1.0f),
                 planetSpin, glm::vec3(0.0f, 1.0f, 0.0f));
 
