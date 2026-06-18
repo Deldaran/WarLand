@@ -37,8 +37,7 @@ glm::mat4 Camera::viewMatrix() const {
     // Mélange orbite -> surface selon le zoom : quand on s'approche du sol,
     // la camera cesse de regarder le centre de la planete et "redresse" son
     // angle vers l'HORIZON et le CIEL, comme si on se posait dessus.
-    float landT = 1.0f - std::clamp((m_distance - 1.07f) / (1.7f - 1.07f), 0.0f, 1.0f);
-    landT = landT * landT * (3.0f - 2.0f * landT); // smoothstep
+    float landT = surfaceFactor();
 
     if (landT <= 0.0001f) {
         return glm::lookAt(pos, m_target, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -52,14 +51,15 @@ glm::mat4 Camera::viewMatrix() const {
     glm::vec3 east = glm::normalize(glm::cross(ref, n));
     glm::vec3 north = glm::cross(n, east);
 
-    // On vise un point du SOL situe devant soi (dans la direction du cap) : le
-    // terrain occupe le bas du cadre, l'horizon et le ciel le haut.
+    // Vue premiere personne "hauteur d'homme" : on regarde a l'HORIZONTALE (cap
+    // tangent a la surface), legerement vers le bas pour voir le sol a ses pieds.
+    // L'horizon est a hauteur d'oeil, le ciel au-dessus, comme dans KSP.
     float yawR = glm::radians(m_yaw);
     glm::vec3 heading = east * std::cos(yawR) + north * std::sin(yawR);
-    glm::vec3 groundAhead = glm::normalize(n + heading * 0.55f); // ~29 deg en avant
+    glm::vec3 surfFwd = glm::normalize(heading - n * 0.12f); // ~7 deg vers le bas
 
     glm::vec3 orbitTarget = m_target;
-    glm::vec3 surfTarget = groundAhead; // point a la surface (rayon ~1)
+    glm::vec3 surfTarget = pos + surfFwd;
     glm::vec3 target = glm::mix(orbitTarget, surfTarget, landT);
     glm::vec3 up = glm::normalize(glm::mix(glm::vec3(0.0f, 1.0f, 0.0f), n, landT));
 

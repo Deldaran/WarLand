@@ -182,6 +182,17 @@ void PlanetMesh::generate(const Params& params) {
     glBindVertexArray(0);
 }
 
+float PlanetMesh::heightAt(const glm::vec3& dir) const {
+    if (m_dirs.empty()) return 1.0f;
+    int best = 0;
+    float bestDot = -2.0f;
+    for (size_t i = 0; i < m_dirs.size(); ++i) {
+        float d = glm::dot(dir, m_dirs[i]);
+        if (d > bestDot) { bestDot = d; best = static_cast<int>(i); }
+    }
+    return glm::length(m_positions[best]);
+}
+
 void PlanetMesh::draw() const {
     glBindVertexArray(m_vao);
     glDrawElements(GL_TRIANGLES, m_indexCount, GL_UNSIGNED_INT, nullptr);

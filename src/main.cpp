@@ -727,24 +727,34 @@ int main() {
                              rv.empty() ? nullptr : rv.data(), GL_DYNAMIC_DRAW);
             }
 
-            // --- Matrices et soleil ---
+            // --- Rotation de la planete : tourne en orbite, se FIGE quand on se
+            // pose (le sol doit etre stable sous la camera). ---
+            float landT = camera.surfaceFactor();
+            static float spinAccum = 0.0f;
+            spinAccum += static_cast<float>(dt) * 0.03f * (1.0f - landT);
+            float planetSpin = spinAccum;
+            glm::mat4 planetModel = glm::rotate(glm::mat4(1.0f),
+                planetSpin, glm::vec3(0.0f, 1.0f, 0.0f));
+
+            // --- Suivi de terrain : la camera ne passe pas sous le sol (hauteur
+            // d'homme au-dessus du relief sous elle). ---
+            if (viewMode == ViewMode::Planet && landT > 0.01f) {
+                glm::vec3 wdir = glm::normalize(camera.position());
+                glm::vec3 mdir = glm::transpose(glm::mat3(planetModel)) * wdir;
+                float minR = planet.heightAt(mdir) + 0.0025f; // ~hauteur d'homme + marge
+                if (camera.distance() < minR) camera.setDistance(minR);
+            }
+
+            // --- Matrices et soleil (apres clamp camera) ---
             glm::mat4 view = camera.viewMatrix();
             glm::mat4 proj = camera.projectionMatrix();
             glm::mat4 viewProj = proj * view;
             glm::vec3 camPos = camera.position();
 
-            // Rotation propre de la planete + jour/nuit : TEMPS REEL, pour que les
-            // nuages bougent toujours visiblement (meme en mode lent / temps reel).
-            // L'EVOLUTION meteo (fronts, formation/dissipation des nuages) est, elle,
-            // calee sur le temps in-game via le climat -> rapide en "Annee", quasi
-            // figee en "Reel".
+            // Soleil (jour/nuit) en temps reel.
             float sunAngle = static_cast<float>(now) * 0.05f;
             glm::vec3 sunDir = glm::normalize(
                 glm::vec3(std::cos(sunAngle), 0.25f, std::sin(sunAngle)));
-
-            float planetSpin = static_cast<float>(now) * 0.03f;
-            glm::mat4 planetModel = glm::rotate(glm::mat4(1.0f),
-                planetSpin, glm::vec3(0.0f, 1.0f, 0.0f));
 
             // --- Position des planetes dans le systeme (orbites animees) ---
             std::vector<glm::vec3> orbitPos(kNumPlanets);

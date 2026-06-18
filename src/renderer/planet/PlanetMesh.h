@@ -39,6 +39,9 @@ public:
     const std::vector<float>& elevations() const { return m_elevations; }   // [-1,1] par sommet
     const std::vector<uint32_t>& indices() const { return m_indices; }
 
+    // Rayon du terrain (sommet le plus proche) sous une direction unitaire.
+    float heightAt(const glm::vec3& dir) const;
+
 private:
     void generate(const Params& params);
 

@@ -25,6 +25,12 @@ public:
 
     const glm::vec3& target() const { return m_target; }
 
+    // Facteur de "surface" : 0 en orbite, 1 au sol (vue premiere personne).
+    float surfaceFactor() const {
+        float t = 1.0f - glm::clamp((m_distance - 1.06f) / (1.8f - 1.06f), 0.0f, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
+    }
+
 private:
     glm::vec3 m_target{0.0f};
     float m_distance = 3.0f;   // rayon orbital (planete de rayon ~1)
@@ -35,7 +41,7 @@ private:
     float m_near = 0.01f;
     float m_far = 500.0f;
 
-    float m_minDistance = 1.04f; // juste au-dessus de la surface
+    float m_minDistance = 1.001f; // au ras du sol (le terrain limite la descente reelle)
     float m_maxDistance = 40.0f;
 };
 

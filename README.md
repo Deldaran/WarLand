@@ -337,9 +337,12 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - « Réel » prépare l'observation des **batailles** ; « Heure/Jour » pour le détail ; « Mois/Année » pour le long terme
 - **Rotation de la planète + jour/nuit en temps réel** (les nuages bougent toujours visiblement, même en Réel/Heure), tandis que l'**évolution météo** (formation/déplacement des fronts via le climat) est calée sur le temps in-game → rapide en Année, quasi figée en Réel
 
-### Caméra d'atterrissage (vue de surface) ✅
-- En **zoomant jusqu'au sol**, la caméra **redresse progressivement son angle** (mélange orbite → surface) : on passe d'une vue du dessus à une **vue rasante** où l'on voit le **terrain, l'horizon courbé et le ciel**, comme si on se posait sur la planète
+### Caméra d'atterrissage / hauteur d'homme (style KSP) ✅
+- En **zoomant jusqu'au sol**, la caméra **redresse son angle** (mélange orbite → surface) et descend à **hauteur d'homme** : vue **première personne** avec l'**horizon à hauteur d'œil**, le sol qui s'étend devant et le **ciel bleu** au-dessus
+- **Suivi de terrain** : la caméra reste juste au-dessus du relief sous elle (`PlanetMesh::heightAt`) — elle ne passe pas sous le sol
+- **Rotation figée au sol** : la planète arrête de tourner quand on se pose (surface stable sous les pieds), reprend en s'éloignant
 - **Ciel bleu vu d'en bas** : l'atmosphère est rendue en face interne quand la caméra est dedans → dégradé atmosphérique (plus dense vers l'horizon)
+- *(Le terrain est encore facetté — le LOD adaptatif du maillage est la prochaine étape pour poser villes & bâtiments.)*
 
 ### Vue système & voyage interplanétaire ✅
 - **Vue orbitale** : une étoile centrale + les **planètes sur leurs orbites animées** (anneaux), chaque planète éclairée par l'étoile — bouton **« Vue système »** dans la barre du haut
