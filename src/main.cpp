@@ -923,8 +923,8 @@ int main() {
                 cloudShader.setMat4("uViewProj", viewProj);
                 cloudShader.setVec3("uCameraPos", camPos);
                 cloudShader.setVec3("uSunDir", sunDir);
-                cloudShader.setFloat("uTime",
-                    static_cast<float>(std::fmod(snap.timeDays, 100000.0)));
+                cloudShader.setFloat("uMorphTime",
+                    static_cast<float>(std::fmod(now, 100000.0))); // temps reel -> nuages vivants
                 cloudShader.setFloat("uPlanetSpin", planetSpin);
                 cloudShader.setInt("uSteps", cloudSteps);
                 cloudShader.setFloat("uFade", cloudFade);

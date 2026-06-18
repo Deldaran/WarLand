@@ -10,7 +10,7 @@ in vec3 vWorldPos;
 
 uniform vec3 uCameraPos;
 uniform vec3 uSunDir;
-uniform float uTime;
+uniform float uMorphTime; // temps reel : fait "vivre"/deformer les nuages
 uniform float uPlanetSpin;
 uniform int uSteps;
 uniform float uFade;
@@ -74,8 +74,10 @@ float cloudDensity(vec3 pos, out float cover) {
     cover = texture(uCloudTex, uv).r; // couverture simulee (cycle de l'eau)
     if (cover < 0.02) return 0.0;      // ciel clair -> on saute le bruit (perf)
 
-    // Detail haute frequence : casse la couverture en volutes.
-    vec3 sp = pdir * 9.0 + vec3(uTime * 0.0015, 0.0, 0.0);
+    // Detail haute frequence qui se DEFORME en temps reel (nuages vivants) :
+    // la couverture (ou) vient du climat (lente), mais la forme (volutes) morphe
+    // sur des secondes via uMorphTime -> un nuage evolue "en quelques heures".
+    vec3 sp = pdir * 9.0 + vec3(uMorphTime * 0.02, uMorphTime * 0.012, uMorphTime * 0.05);
     float n = fbm(sp);
     float d = smoothstep(1.0 - cover, 1.0 - cover + 0.45, n) * cover;
     return d * vertical;
