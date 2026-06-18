@@ -342,7 +342,11 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **Suivi de terrain** : la caméra reste juste au-dessus du relief sous elle (`PlanetMesh::heightAt`) — elle ne passe pas sous le sol
 - **Rotation figée au sol** : la planète arrête de tourner quand on se pose (surface stable sous les pieds), reprend en s'éloignant
 - **Ciel bleu vu d'en bas** : l'atmosphère est rendue en face interne quand la caméra est dedans → dégradé atmosphérique (plus dense vers l'horizon)
-- *(Le terrain est encore facetté — le LOD adaptatif du maillage est la prochaine étape pour poser villes & bâtiments.)*
+### LOD adaptatif du terrain (tessellation GPU) ✅
+- **Tessellation matérielle** (OpenGL 4.5) du terrain de la planète : niveau de subdivision **adaptatif selon la taille à l'écran** (`planet.tesc`) → fin et lisse près de la caméra, grossier au loin
+- **PN-triangles** (`planet.tese`) : interpolation courbe guidée par les normales → **supprime les facettes** sans changer la géographie, + **bruit de détail** fin ajouté au sol
+- Plus de détail en vue rasante (maxTess 32) que depuis l'orbite (12) ; fallback automatique au rendu standard si la tessellation est indisponible
+- → terrain lisse au sol, prêt à recevoir les villes & bâtiments
 
 ### Vue système & voyage interplanétaire ✅
 - **Vue orbitale** : une étoile centrale + les **planètes sur leurs orbites animées** (anneaux), chaque planète éclairée par l'étoile — bouton **« Vue système »** dans la barre du haut

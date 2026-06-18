@@ -199,4 +199,10 @@ void PlanetMesh::draw() const {
     glBindVertexArray(0);
 }
 
+void PlanetMesh::drawPatches() const {
+    glBindVertexArray(m_vao);
+    glDrawElements(GL_PATCHES, m_indexCount, GL_UNSIGNED_INT, nullptr);
+    glBindVertexArray(0);
+}
+
 } // namespace wl

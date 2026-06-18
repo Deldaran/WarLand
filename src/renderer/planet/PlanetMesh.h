@@ -28,6 +28,7 @@ public:
     PlanetMesh& operator=(const PlanetMesh&) = delete;
 
     void draw() const;
+    void drawPatches() const; // rendu en GL_PATCHES (pipeline tesselle)
 
     int triangleCount() const { return m_indexCount / 3; }
     int vertexCount() const { return m_vertexCount; }

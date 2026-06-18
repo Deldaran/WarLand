@@ -404,6 +404,7 @@ int main() {
         // --- Shaders ---
         const std::string assets = WARLAND_ASSETS_DIR;
         wl::Shader planetShader;
+        wl::Shader planetTessShader; // LOD : pipeline tesselle pour la planete active
         wl::Shader atmoShader;
         wl::Shader overlayShader;
         wl::Shader borderShader;
@@ -424,6 +425,11 @@ int main() {
             std::cerr << "[WarLand] Echec du chargement des shaders\n";
             return 1;
         }
+        bool tessOk = planetTessShader.loadWithTess(
+            assets + "/shaders/planet_tess.vert", assets + "/shaders/planet.tesc",
+            assets + "/shaders/planet.tese", assets + "/shaders/planet.frag");
+        if (!tessOk) std::cerr << "[WarLand] Tessellation indisponible -> rendu standard\n";
+        glPatchParameteri(GL_PATCH_VERTICES, 3);
 
         // Parametres de la coquille nuageuse et de l'atmosphere (fine, realiste).
         const float kCloudInner = 1.045f;
@@ -847,17 +853,31 @@ int main() {
             }
           } else {
             // ===== VUE PLANETE =====
-            // 1. La planete (opaque, depth on)
+            // 1. La planete (opaque, depth on) -> pipeline TESSELLE (LOD adaptatif)
             glEnable(GL_DEPTH_TEST);
             glDepthMask(GL_TRUE);
             glDisable(GL_BLEND);
-            planetShader.bind();
-            planetShader.setMat4("uModel", planetModel);
-            planetShader.setMat4("uViewProj", viewProj);
-            planetShader.setVec3("uCameraPos", camPos);
-            planetShader.setVec3("uSunDir", sunDir);
-            planetShader.setFloat("uSeaLevel", planetParams.seaLevel);
-            planet.draw();
+            if (tessOk) {
+                planetTessShader.bind();
+                planetTessShader.setMat4("uModel", planetModel);
+                planetTessShader.setMat4("uViewProj", viewProj);
+                planetTessShader.setVec3("uCameraPos", camPos);
+                planetTessShader.setVec3("uSunDir", sunDir);
+                planetTessShader.setFloat("uSeaLevel", planetParams.seaLevel);
+                planetTessShader.setVec2("uScreen",
+                    glm::vec2((float)window.width(), (float)window.height()));
+                // Plus de detail au sol (vue rasante), modere depuis l'orbite.
+                planetTessShader.setFloat("uMaxTess", landT > 0.01f ? 32.0f : 12.0f);
+                planet.drawPatches();
+            } else {
+                planetShader.bind();
+                planetShader.setMat4("uModel", planetModel);
+                planetShader.setMat4("uViewProj", viewProj);
+                planetShader.setVec3("uCameraPos", camPos);
+                planetShader.setVec3("uSunDir", sunDir);
+                planetShader.setFloat("uSeaLevel", planetParams.seaLevel);
+                planet.draw();
+            }
 
             // 2. Overlay (politique ou heatmap population) si une couche est active
             if (overlayMode != OverlayMode::None) {
