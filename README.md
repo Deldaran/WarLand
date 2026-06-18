@@ -329,6 +329,7 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 ### Âge du monde & FPS lissé ✅
 - Le HUD affiche l'**âge du monde** (en années, + jour de l'année) au lieu d'une année négative arbitraire
 - **Compteur FPS lissé** (moyenne glissante exponentielle + rafraîchissement ~3×/s) → valeur stable, plus de saut 170/120/175 à chaque frame
+- **Limiteur de FPS** réglable dans le HUD (**VSync / 60 / 120 / 144 / Illimité**) avec **frame pacing précis** (sleep grossier + busy-wait fin, timer 1 ms via `timeBeginPeriod`) → temps de frame constants comme dans les moteurs actuels (vérifié : cap 60 = 16,67 ms exact)
 
 ### Échelles de temps réelles + curseur ✅
 - La vitesse n'est plus un multiplicateur abstrait mais des **échelles concrètes** (1 seconde réelle = …) : **Réel** (1 s), **Heure**, **Jour**, **Mois**, **Année**

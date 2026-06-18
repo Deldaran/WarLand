@@ -103,6 +103,10 @@ target_link_libraries(WarLand PRIVATE
     nlohmann_json::nlohmann_json
     imgui)
 
+if(WIN32)
+    target_link_libraries(WarLand PRIVATE winmm) # timeBeginPeriod : timer precis
+endif()
+
 # Chemin absolu vers les ressources, injecte a la compilation
 target_compile_definitions(WarLand PRIVATE
     WARLAND_ASSETS_DIR="${CMAKE_SOURCE_DIR}")

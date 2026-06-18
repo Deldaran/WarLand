@@ -2,6 +2,13 @@
 // Phase 1 : rendu planetaire (icosphere subdivisee + relief procedural,
 // coloration des biomes, shader d'atmosphere) avec camera orbitale et HUD ImGui.
 
+#ifdef _WIN32
+#define NOMINMAX            // ne pas redefinir min/max (clash avec std::min/max)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>        // timeBeginPeriod -> sleeps precis pour le limiteur FPS
+#include <timeapi.h>
+#endif
+
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
@@ -26,6 +33,8 @@
 #include <cmath>
 #include <cstdio>
 #include <algorithm>
+#include <thread>
+#include <chrono>
 
 #ifndef WARLAND_ASSETS_DIR
 #define WARLAND_ASSETS_DIR "."
@@ -107,7 +116,7 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
             LayerState& layers, const wl::Camera& cam,
             const wl::PlanetMesh& planet, const wl::ProvinceMap& provinces,
             int& activePlanet, int planetCount, bool isSystem, bool& toggleView,
-            int& timeUnit, int& timeMult,
+            int& timeUnit, int& timeMult, int& fpsLimit,
             int selectedProvince, int selectedCiv, double fps) {
     ImGuiViewport* vp = ImGui::GetMainViewport();
 
@@ -187,6 +196,17 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
         if (ImGui::Button("Charger")) runner.requestLoad(activePlanet, savePath);
         ImGui::SameLine(0, 40);
         ImGui::Text("%.0f FPS", fps);
+        // Limiteur de FPS (frame pacing).
+        struct FpsOpt { const char* name; int val; };
+        static const FpsOpt fopts[] = {{"VSync", -1}, {"60", 60}, {"120", 120},
+                                       {"144", 144}, {"Illim", 0}};
+        for (const auto& o : fopts) {
+            ImGui::SameLine();
+            bool active = (fpsLimit == o.val);
+            if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.3f, 1.0f));
+            if (ImGui::Button((std::string(o.name) + "##fps").c_str())) fpsLimit = o.val;
+            if (active) ImGui::PopStyleColor();
+        }
     }
     ImGui::End();
 
@@ -366,6 +386,13 @@ int main() {
     try {
         wl::Window window(1600, 900, "WarLand - Phase 9");
         glfwSetScrollCallback(window.handle(), scrollCallback);
+#ifdef _WIN32
+        timeBeginPeriod(1); // resolution timer 1 ms -> sleeps precis (limiteur FPS)
+#endif
+
+        // Limiteur de FPS : -1 = VSync, 0 = illimite, >0 = plafond (frame pacing).
+        int fpsLimit = -1; // VSync par defaut
+        int appliedSwap = 1; // glfwSwapInterval applique (1 = vsync, defini par Window)
 
         // --- Setup ImGui ---
         IMGUI_CHECKVERSION();
@@ -532,6 +559,10 @@ int main() {
             fpsTimer += dt;
             if (fpsShown <= 0.0 || fpsTimer >= 0.33) { fpsShown = fpsSmooth; fpsTimer = 0.0; }
             double fps = fpsShown;
+
+            // Applique VSync (cap=-1) ou desactive (cap >= 0 -> limiteur logiciel).
+            int wantSwap = (fpsLimit == -1) ? 1 : 0;
+            if (wantSwap != appliedSwap) { glfwSwapInterval(wantSwap); appliedSwap = wantSwap; }
 
             window.pollEvents();
             camera.setAspect(window.aspectRatio());
@@ -959,7 +990,7 @@ int main() {
             bool toggleView = false;
             drawUI(runner, snap, layers, camera, planet, provinces,
                    activePlanet, kNumPlanets, viewMode == ViewMode::System, toggleView,
-                   timeUnit, timeMult, selectedProvince, selectedCiv, fps);
+                   timeUnit, timeMult, fpsLimit, selectedProvince, selectedCiv, fps);
             if (toggleView) {
                 if (viewMode == ViewMode::System) {
                     viewMode = ViewMode::Planet;
@@ -973,6 +1004,19 @@ int main() {
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
             window.swapBuffers();
+
+            // --- Limiteur de FPS : frame pacing precis (sleep grossier + spin fin) ---
+            if (fpsLimit > 0) {
+                double target = 1.0 / fpsLimit;
+                for (;;) {
+                    double el = glfwGetTime() - now; // now = debut de frame
+                    if (el >= target) break;
+                    double rem = target - el;
+                    if (rem > 0.0015)
+                        std::this_thread::sleep_for(std::chrono::duration<double>(rem - 0.001));
+                    // sinon : busy-wait pour la precision finale
+                }
+            }
         }
 
         runner.stop(); // arret propre du thread de simulation
