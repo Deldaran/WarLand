@@ -341,6 +341,7 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **Deux modes** ([Camera](src/renderer/Camera.h)) avec bascule automatique au zoom :
   - **Orbite** : drag souris = tourner autour de la planète, molette = zoom
   - **Surface (vol/RTS)** : au ras du sol — **ZQSD** pour se déplacer, **souris** (drag) pour regarder (horizon **et ciel**), **molette** = altitude ; vitesse proportionnelle à l'altitude
+  - **Zoom fin près du sol** : en mode surface la molette agit sur l'**altitude** (pas sur la distance totale) → réglage doux au ras du sol, rapide en orbite
 - **Touche M** : afficher/masquer le **maillage** (wireframe) — voir le LOD
 - **Suivi de terrain** (`PlanetMesh::heightAt`) : la caméra ne passe pas sous le sol ; **rotation figée** une fois posé
 - **Ciel bleu** rendu de l'intérieur de l'atmosphère
@@ -350,6 +351,12 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **PN-triangles** (`planet.tese`) : interpolation courbe guidée par les normales → **supprime les facettes** sans changer la géographie, + **bruit de détail** fin ajouté au sol
 - Plus de détail en vue rasante (maxTess 32) que depuis l'orbite (12) ; fallback automatique au rendu standard si la tessellation est indisponible
 - → terrain lisse au sol, prêt à recevoir les villes & bâtiments
+
+### Props nature en billboards 2D (style Daggerfall) ✅
+- **Sprites 2D plaqués sur le relief** qui font **toujours face à la caméra** tout en restant **debout** ([PropLayer](src/renderer/props/PropLayer.h), `prop.vert`/`prop.frag`) — comme les arbres de *The Elder Scrolls : Daggerfall*
+- **Dispersion par biome** : arbres feuillus (tempéré/équatorial), **sapins** (taïga froide), **buissons**, **cactus** (ceintures sèches), **rochers** (montagnes/toundra), **touffes d'herbe** ; densité modulée par un bruit basse fréquence → **forêts en amas**, jamais sur l'eau
+- **Rendu instancié** (`glDrawArraysInstanced`, ~dizaines de milliers de props) + **alpha-test** (bords nets) ; visibles **uniquement près du sol**, fondu/disparition avec la distance → coût nul depuis l'orbite
+- **Atlas de sprites procédural** (placeholders dessinés à la main) ; déposer des PNG dans `assets/textures/props/` (`arbre.png`, `sapin.png`, `buisson.png`, `cactus.png`, `rocher.png`, `herbe.png`) les **remplace automatiquement** (chargés via stb_image)
 
 ### Vue système & voyage interplanétaire ✅
 - **Vue orbitale** : une étoile centrale + les **planètes sur leurs orbites animées** (anneaux), chaque planète éclairée par l'étoile — bouton **« Vue système »** dans la barre du haut

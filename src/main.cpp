@@ -24,6 +24,7 @@
 #include "renderer/Camera.h"
 #include "renderer/planet/PlanetMesh.h"
 #include "renderer/overlay/ProvinceMap.h"
+#include "renderer/props/PropLayer.h"
 #include "simulation/SimulationWorld.h"
 #include "simulation/SimulationRunner.h"
 
@@ -410,7 +411,10 @@ int main() {
         wl::Shader borderShader;
         wl::Shader cloudShader;
         wl::Shader cityShader;
-        if (!planetShader.loadFromFiles(assets + "/shaders/planet.vert",
+        wl::Shader propShader; // props nature en billboards 2D (arbres, rochers...)
+        if (!propShader.loadFromFiles(assets + "/shaders/prop.vert",
+                                      assets + "/shaders/prop.frag") ||
+            !planetShader.loadFromFiles(assets + "/shaders/planet.vert",
                                         assets + "/shaders/planet.frag") ||
             !atmoShader.loadFromFiles(assets + "/shaders/atmosphere.vert",
                                       assets + "/shaders/atmosphere.frag") ||
@@ -476,6 +480,14 @@ int main() {
             planetMeshes.push_back(std::move(mesh));
             planetProvinces.push_back(std::move(prov));
         }
+        // Props nature (billboards 2D) disperses sur chaque monde.
+        std::vector<std::unique_ptr<wl::PropLayer>> propLayers;
+        for (int i = 0; i < kNumPlanets; ++i) {
+            auto pl = std::make_unique<wl::PropLayer>();
+            pl->build(*planetMeshes[i], 1337u + static_cast<uint32_t>(i) * 7919u, assets);
+            propLayers.push_back(std::move(pl));
+        }
+
         int activePlanet = 0, prevPlanet = 0;
         int timeUnit = 3, timeMult = 1; // echelle de temps (defaut : Mois x1)
 
@@ -915,6 +927,24 @@ int main() {
             }
             if (wireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             glDisable(GL_CULL_FACE);
+
+            // 1b. Props nature (arbres, rochers...) en billboards 2D, visibles
+            //     seulement pres du sol (style Daggerfall : sprites face camera).
+            if (camera.distance() < 1.4f && propLayers[activePlanet]->instanceCount() > 0) {
+                glEnable(GL_DEPTH_TEST);
+                glDepthMask(GL_TRUE);
+                glDisable(GL_BLEND);
+                glDisable(GL_CULL_FACE); // quads simple-face orientes vers la camera
+                propShader.bind();
+                propShader.setMat4("uModel", planetModel);
+                propShader.setMat4("uViewProj", viewProj);
+                propShader.setVec3("uCameraPos", camPos);
+                propShader.setVec3("uSunDir", sunDir);
+                propShader.setFloat("uMaxDist", 0.18f);
+                propShader.setInt("uAtlasCols", propLayers[activePlanet]->atlasCols());
+                propShader.setInt("uAtlas", 0);
+                propLayers[activePlanet]->draw();
+            }
 
             // 2. Overlay (politique ou heatmap population) si une couche est active
             if (overlayMode != OverlayMode::None) {

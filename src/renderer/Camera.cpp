@@ -44,8 +44,16 @@ void Camera::orbit(float deltaYawDeg, float deltaPitchDeg) {
 }
 
 void Camera::zoom(float deltaScroll) {
-    m_distance *= std::pow(0.9f, deltaScroll);
-    m_distance = std::clamp(m_distance, m_minDistance, m_maxDistance);
+    if (m_mode == Mode::Surface) {
+        // Pres du sol : zoom proportionnel a l'ALTITUDE -> tres fin au ras du sol.
+        float alt = std::max(0.0005f, m_distance - 1.0f);
+        alt *= std::pow(0.8f, deltaScroll);
+        m_distance = std::clamp(1.0f + alt, m_minDistance, m_maxDistance);
+    } else {
+        // En orbite : zoom proportionnel a la distance (plus rapide).
+        m_distance *= std::pow(0.9f, deltaScroll);
+        m_distance = std::clamp(m_distance, m_minDistance, m_maxDistance);
+    }
 }
 
 void Camera::surfaceLook(float dYawDeg, float dPitchDeg) {

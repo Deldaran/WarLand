@@ -65,6 +65,13 @@ FetchContent_Declare(json
     GIT_SHALLOW ON)
 FetchContent_MakeAvailable(json)
 
+# --- stb : chargement d'images (sprites des props nature / batiments) ---
+FetchContent_Declare(stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG master
+    GIT_SHALLOW ON)
+FetchContent_MakeAvailable(stb)
+
 # --- Dear ImGui : UI en jeu et outils de debug (sans CMake officiel) ---
 FetchContent_Declare(imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
@@ -93,7 +100,7 @@ file(GLOB_RECURSE WARLAND_SOURCES CONFIGURE_DEPENDS
 
 add_executable(WarLand ${WARLAND_SOURCES})
 
-target_include_directories(WarLand PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(WarLand PRIVATE ${CMAKE_SOURCE_DIR}/src ${stb_SOURCE_DIR})
 
 target_link_libraries(WarLand PRIVATE
     glfw
