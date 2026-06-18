@@ -1056,12 +1056,16 @@ int main() {
                 }
                 int cloudSteps = camDist > 6.0f ? 8 : (camDist > 3.0f ? 12 : 18);
                 glm::mat4 cloudModel = glm::scale(glm::mat4(1.0f), glm::vec3(kCloudDrawRadius));
-                glDisable(GL_DEPTH_TEST);
+                bool insideCloud = camDist < kCloudDrawRadius;
+                // Au sol (camera SOUS la coquille) : on garde le test de profondeur
+                // pour que le RELIEF OCCULTE les nuages -> ils ne restent que dans le
+                // ciel (au-dessus de l'horizon), plus de bande delavee sur le terrain.
+                // En orbite : pas de test (les nuages enveloppent le limbe).
+                if (insideCloud) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
                 glDepthMask(GL_FALSE);
                 glEnable(GL_CULL_FACE);
-                // Si la camera est sous la coquille nuageuse (vue au sol), on rend
-                // la face interne pour voir les nuages depuis en dessous.
-                glCullFace(camDist < kCloudDrawRadius ? GL_FRONT : GL_BACK);
+                // Sous la coquille : on rend la face interne (nuages vus d'en dessous).
+                glCullFace(insideCloud ? GL_FRONT : GL_BACK);
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                 cloudShader.bind();
