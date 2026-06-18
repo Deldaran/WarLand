@@ -326,6 +326,10 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **Commerce freiné par la langue** : les échanges entre provinces de cultures différentes sont réduits (barrière culturelle)
 - **Multi-planètes** : un **système de 3 mondes** générés différemment, **simulés en parallèle** (chacun sa géographie, ses civilisations, son climat) — [SimulationRunner](src/simulation/SimulationRunner.h) gère N `SimulationWorld`. Un **sélecteur « Monde k/N »** permet de voyager entre les planètes ; le rendu n'affiche que la planète active (ressources de rendu partagées) → coût GPU maîtrisé
 
+### Âge du monde & FPS lissé ✅
+- Le HUD affiche l'**âge du monde** (en années, + jour de l'année) au lieu d'une année négative arbitraire
+- **Compteur FPS lissé** (moyenne glissante exponentielle + rafraîchissement ~3×/s) → valeur stable, plus de saut 170/120/175 à chaque frame
+
 ### Échelles de temps réelles + curseur ✅
 - La vitesse n'est plus un multiplicateur abstrait mais des **échelles concrètes** (1 seconde réelle = …) : **Réel** (1 s), **Heure**, **Jour**, **Mois**, **Année**
 - **Curseur** par échelle : le multiplicateur se règle finement (ex. 1→24 heures/s, 1→30 jours/s) → pas seulement « heure par heure » mais « 5 heures par seconde » etc.

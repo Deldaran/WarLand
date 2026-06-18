@@ -118,7 +118,11 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar);
     {
-        ImGui::Text("An %d", snap.year);
+        // Age du monde (il demarre a l'an -3000 -> 0 an au depart).
+        double ageDays = snap.timeDays + 3000.0 * 365.0;
+        int ageYears = static_cast<int>(ageDays / 365.0);
+        int ageDay = static_cast<int>(ageDays - static_cast<double>(ageYears) * 365.0);
+        ImGui::Text("Age : %d ans (j%d)", ageYears, ageDay);
         ImGui::SameLine(0, 20);
         {
             // Ere globale = celle de la civilisation la plus avancee.
@@ -520,7 +524,14 @@ int main() {
             double now = glfwGetTime();
             double dt = now - lastTime;
             lastTime = now;
-            double fps = dt > 0 ? 1.0 / dt : 0.0;
+            // FPS lisse : moyenne glissante exponentielle + affichage rafraichi
+            // ~3x/s -> compteur stable (pas de saut 170/120/175 a chaque frame).
+            double instFps = dt > 0 ? 1.0 / dt : 0.0;
+            static double fpsSmooth = 0.0, fpsShown = 0.0, fpsTimer = 0.0;
+            fpsSmooth = (fpsSmooth <= 0.0) ? instFps : fpsSmooth * 0.94 + instFps * 0.06;
+            fpsTimer += dt;
+            if (fpsShown <= 0.0 || fpsTimer >= 0.33) { fpsShown = fpsSmooth; fpsTimer = 0.0; }
+            double fps = fpsShown;
 
             window.pollEvents();
             camera.setAspect(window.aspectRatio());
