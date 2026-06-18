@@ -130,12 +130,21 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
         ImGui::TextColored(ImVec4(0.7f, 0.9f, 0.7f, 1), "%s", seasonName(snap.timeDays));
         ImGui::SameLine(0, 30);
         if (ImGui::Button(runner.paused() ? "Play" : "Pause")) runner.setPaused(!runner.paused());
-        ImGui::SameLine();
-        for (int s : {1, 2, 5, 10}) {
+        // Echelles de temps : 1 seconde reelle = ... de temps in-game.
+        struct TimeScale { const char* name; double daysPerSec; };
+        static const TimeScale scales[] = {
+            {"Reel",  1.0 / 86400.0}, // 1 s = 1 s
+            {"Heure", 1.0 / 24.0},    // 1 s = 1 h
+            {"Jour",  1.0},           // 1 s = 1 jour
+            {"Mois",  30.0},          // 1 s = 1 mois
+            {"Annee", 365.0},         // 1 s = 1 an
+        };
+        double cur = runner.daysPerSecond();
+        for (const auto& s : scales) {
             ImGui::SameLine();
-            bool active = (runner.speed() == s);
+            bool active = std::abs(cur - s.daysPerSec) < s.daysPerSec * 0.01;
             if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.3f, 1.0f));
-            if (ImGui::Button((std::string("x") + std::to_string(s)).c_str())) runner.setSpeed(s);
+            if (ImGui::Button(s.name)) { runner.setDaysPerSecond(s.daysPerSec); runner.setPaused(false); }
             if (active) ImGui::PopStyleColor();
         }
         ImGui::SameLine(0, 40);

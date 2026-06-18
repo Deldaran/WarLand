@@ -48,9 +48,10 @@ public:
 
     // Controles (thread-safe via atomiques).
     void setPaused(bool p) { m_paused.store(p); }
-    void setSpeed(int s) { m_speed.store(s); }
     bool paused() const { return m_paused.load(); }
-    int speed() const { return m_speed.load(); }
+    // Echelle de temps : nombre de jours in-game ecoules par seconde reelle.
+    void setDaysPerSecond(double d) { m_daysPerSec.store(d); }
+    double daysPerSecond() const { return m_daysPerSec.load(); }
 
     // Cote rendu : copie du dernier instantane publie de la planete `planet`.
     Snapshot snapshot(int planet) const;
@@ -74,7 +75,7 @@ private:
     std::thread m_thread;
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_paused{false};
-    std::atomic<int> m_speed{1};
+    std::atomic<double> m_daysPerSec{30.0}; // defaut : ~1 mois / seconde
 
     mutable std::mutex m_mutex;
     std::vector<Snapshot> m_published;

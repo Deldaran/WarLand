@@ -84,7 +84,7 @@ void SimulationRunner::run() {
         }
 
         if (!m_paused.load()) {
-            double days = dt * m_speed.load() * 40.0; // 40 jours / s a x1
+            double days = dt * m_daysPerSec.load(); // echelle de temps choisie
             m_dayOfYear += days;
             while (m_dayOfYear >= 365.0) {
                 m_dayOfYear -= 365.0;
