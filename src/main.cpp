@@ -552,6 +552,8 @@ int main() {
         bool wasLeftDown = false;
         bool clickCandidate = false;
         double pressX = 0, pressY = 0;
+        bool wireframe = false; // touche M : voir le maillage tesselle
+        bool wirePrev = false;
 
         while (!window.shouldClose()) {
             double now = glfwGetTime();
@@ -604,21 +606,51 @@ int main() {
             }
             wasLeftDown = leftDown;
 
+            // Glisser souris : orbiter (mode orbite) ou regarder librement (surface).
             if (leftDown && !io.WantCaptureMouse) {
                 if (!dragging) { dragging = true; lastMouseX = mx; lastMouseY = my; }
                 float dx = static_cast<float>(mx - lastMouseX);
                 float dy = static_cast<float>(my - lastMouseY);
-                camera.orbit(dx * 0.3f, -dy * 0.3f);
+                if (camera.mode() == wl::Camera::Mode::Orbit)
+                    camera.orbit(dx * 0.3f, -dy * 0.3f);
+                else
+                    camera.surfaceLook(dx * 0.15f, -dy * 0.15f); // souris -> regard (haut/bas inclus)
             } else {
                 dragging = false;
             }
             lastMouseX = mx;
             lastMouseY = my;
 
+            // Molette : altitude + bascule automatique orbite <-> surface.
             if (!io.WantCaptureMouse && g_scrollDelta != 0.0) {
                 camera.zoom(static_cast<float>(g_scrollDelta));
+                if (camera.mode() == wl::Camera::Mode::Orbit && camera.distance() < 1.3f)
+                    camera.enterSurface();
+                else if (camera.mode() == wl::Camera::Mode::Surface && camera.distance() > 1.6f)
+                    camera.enterOrbit();
             }
             g_scrollDelta = 0.0;
+
+            // ZQSD (AZERTY = W/A/S/D physiques) : se deplacer au sol facon vol/RTS.
+            if (camera.mode() == wl::Camera::Mode::Surface && !io.WantCaptureKeyboard) {
+                float fwd = 0.0f, strafe = 0.0f;
+                GLFWwindow* wh = window.handle();
+                if (glfwGetKey(wh, GLFW_KEY_W) == GLFW_PRESS) fwd += 1.0f;
+                if (glfwGetKey(wh, GLFW_KEY_S) == GLFW_PRESS) fwd -= 1.0f;
+                if (glfwGetKey(wh, GLFW_KEY_D) == GLFW_PRESS) strafe += 1.0f;
+                if (glfwGetKey(wh, GLFW_KEY_A) == GLFW_PRESS) strafe -= 1.0f;
+                if (fwd != 0.0f || strafe != 0.0f) {
+                    float alt = std::clamp(camera.distance() - 1.0f, 0.002f, 2.0f);
+                    camera.surfaceMove(fwd, strafe, alt * 1.6f * static_cast<float>(dt));
+                }
+            }
+
+            // Touche M : bascule l'affichage du maillage (wireframe).
+            {
+                bool wireKey = glfwGetKey(window.handle(), GLFW_KEY_M) == GLFW_PRESS;
+                if (wireKey && !wirePrev && !io.WantCaptureKeyboard) wireframe = !wireframe;
+                wirePrev = wireKey;
+            }
 
             // --- Changement de planete : reinitialise selection et overlay ---
             if (activePlanet != prevPlanet) {
@@ -857,6 +889,9 @@ int main() {
             glEnable(GL_DEPTH_TEST);
             glDepthMask(GL_TRUE);
             glDisable(GL_BLEND);
+            glEnable(GL_CULL_FACE);   // ne dessine que l'hemisphere visible
+            glCullFace(GL_BACK);      // -> plus de "voir a travers la planete"
+            if (wireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             if (tessOk) {
                 planetTessShader.bind();
                 planetTessShader.setMat4("uModel", planetModel);
@@ -878,6 +913,8 @@ int main() {
                 planetShader.setFloat("uSeaLevel", planetParams.seaLevel);
                 planet.draw();
             }
+            if (wireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glDisable(GL_CULL_FACE);
 
             // 2. Overlay (politique ou heatmap population) si une couche est active
             if (overlayMode != OverlayMode::None) {

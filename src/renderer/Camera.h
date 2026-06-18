@@ -4,44 +4,61 @@
 
 namespace wl {
 
-// Camera orbitale : tourne autour d'une cible (le centre de la planete).
-// Controle: drag souris = rotation, molette = zoom. C'est la base de la
-// navigation orbitale -> sol decrite dans le GamePlan.
+// Camera a deux modes :
+//  - Orbit  : tourne autour du centre de la planete (vue spatiale).
+//  - Surface: vol/RTS au ras du sol -> ZQSD pour se deplacer, souris pour
+//             regarder (y compris vers le haut), molette = altitude.
+// On bascule automatiquement de l'un a l'autre selon le zoom.
 class Camera {
 public:
+    enum class Mode { Orbit, Surface };
+
     Camera(float aspect);
 
     void setAspect(float aspect) { m_aspect = aspect; }
 
-    // Entrees normalisees (deltas souris en pixels, delta molette en crans).
+    Mode mode() const { return m_mode; }
+    void enterSurface();
+    void enterOrbit();
+
+    // --- Mode orbite ---
     void orbit(float deltaYawDeg, float deltaPitchDeg);
-    void zoom(float deltaScroll);
-    void setDistance(float d) { m_distance = glm::clamp(d, m_minDistance, m_maxDistance); }
+    void zoom(float deltaScroll); // molette (altitude dans les deux modes)
+    void setDistance(float d);
     float distance() const { return m_distance; }
 
+    // --- Mode surface (vol / RTS) ---
+    void surfaceLook(float dYawDeg, float dPitchDeg);          // souris : regarder
+    void surfaceMove(float forward, float strafe, float dist); // ZQSD : se deplacer
+    glm::vec3 surfaceDir() const { return m_surfDir; }         // position sur le globe
+
     glm::mat4 viewMatrix() const;
-    glm::mat4 projectionMatrix() const;
+    glm::mat4 projectionMatrix() const; // near/far adaptatifs (precision depth)
     glm::vec3 position() const;
 
     const glm::vec3& target() const { return m_target; }
 
-    // Facteur de "surface" : 0 en orbite, 1 au sol (vue premiere personne).
-    float surfaceFactor() const {
-        float t = 1.0f - glm::clamp((m_distance - 1.06f) / (1.8f - 1.06f), 0.0f, 1.0f);
-        return t * t * (3.0f - 2.0f * t);
-    }
+    // 0 en orbite, 1 au sol (utilise pour le LOD / suivi de terrain).
+    float surfaceFactor() const { return m_mode == Mode::Surface ? 1.0f : 0.0f; }
 
 private:
-    glm::vec3 m_target{0.0f};
-    float m_distance = 3.0f;   // rayon orbital (planete de rayon ~1)
-    float m_yaw = 45.0f;       // angle horizontal (degres)
-    float m_pitch = 20.0f;     // angle vertical (degres)
-    float m_aspect;
-    float m_fovDeg = 50.0f;
-    float m_near = 0.01f;
-    float m_far = 500.0f;
+    glm::vec3 tangentFrame(glm::vec3& east, glm::vec3& north) const; // repere local
 
-    float m_minDistance = 1.001f; // au ras du sol (le terrain limite la descente reelle)
+    Mode m_mode = Mode::Orbit;
+
+    glm::vec3 m_target{0.0f};
+    float m_distance = 3.0f;   // rayon (orbite ou altitude depuis le centre)
+    float m_yaw = 45.0f;       // orbite : angle horizontal
+    float m_pitch = 20.0f;     // orbite : angle vertical
+    float m_aspect;
+    float m_fovDeg = 55.0f;
+
+    // Mode surface
+    glm::vec3 m_surfDir{0.0f, 0.0f, 1.0f}; // position sur le globe (unitaire)
+    float m_lookYaw = 0.0f;                // cap (degres)
+    float m_lookPitch = -8.0f;             // elevation du regard (degres)
+
+    float m_minDistance = 1.0008f;
     float m_maxDistance = 40.0f;
 };
 
