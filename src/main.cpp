@@ -916,7 +916,10 @@ int main() {
                 glDisable(GL_DEPTH_TEST);
                 glDepthMask(GL_FALSE);
                 glEnable(GL_CULL_FACE);
-                glCullFace(GL_BACK);
+                // Si la camera est DANS l'atmosphere (vue au sol), on rend la face
+                // interne -> ciel bleu vu d'en bas. Sinon halo vu de l'espace.
+                bool inside = camDist < kAtmoDrawRadius;
+                glCullFace(inside ? GL_FRONT : GL_BACK);
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_ONE, GL_ONE);   // additif (glow)
                 atmoShader.bind();
@@ -926,7 +929,7 @@ int main() {
                 atmoShader.setVec3("uSunDir", sunDir);
                 atmoShader.setFloat("uPlanetRadius", 1.0f);
                 atmoShader.setFloat("uAtmoRadius", kAtmoRadius);
-                atmoShader.setFloat("uStrength", 2.2f);
+                atmoShader.setFloat("uStrength", inside ? 3.5f : 2.2f); // ciel plus dense d'en bas
                 atmosphere.draw();
                 glDisable(GL_BLEND);
                 glDisable(GL_CULL_FACE);
