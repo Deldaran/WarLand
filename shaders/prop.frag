@@ -1,15 +1,15 @@
 #version 450 core
 
 in vec2 vUV;
+flat in float vLayer;
 out vec4 FragColor;
 
-uniform sampler2D uAtlas;
+uniform sampler2DArray uAtlas;
 uniform vec3 uSunDir;
 
 void main() {
-    vec4 c = texture(uAtlas, vUV);
+    vec4 c = texture(uAtlas, vec3(vUV, vLayer));
     if (c.a < 0.4) discard;       // alpha-test : bords nets (sprites Daggerfall)
-    // Petit eclairage diffus pour ancrer les props dans la scene.
-    float light = 0.75 + 0.25 * max(uSunDir.y, 0.0);
+    float light = 0.78 + 0.22 * max(uSunDir.y, 0.0); // petit eclairage diffus
     FragColor = vec4(c.rgb * light, 1.0);
 }

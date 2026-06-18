@@ -354,9 +354,16 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 
 ### Props nature en billboards 2D (style Daggerfall) ✅
 - **Sprites 2D plaqués sur le relief** qui font **toujours face à la caméra** tout en restant **debout** ([PropLayer](src/renderer/props/PropLayer.h), `prop.vert`/`prop.frag`) — comme les arbres de *The Elder Scrolls : Daggerfall*
-- **Dispersion par biome** : arbres feuillus (tempéré/équatorial), **sapins** (taïga froide), **buissons**, **cactus** (ceintures sèches), **rochers** (montagnes/toundra), **touffes d'herbe** ; densité modulée par un bruit basse fréquence → **forêts en amas**, jamais sur l'eau
-- **Rendu instancié** (`glDrawArraysInstanced`, ~dizaines de milliers de props) + **alpha-test** (bords nets) ; visibles **uniquement près du sol**, fondu/disparition avec la distance → coût nul depuis l'orbite
-- **Atlas de sprites procédural** (placeholders dessinés à la main) ; déposer des PNG dans `assets/textures/props/` (`arbre.png`, `sapin.png`, `buisson.png`, `cactus.png`, `rocher.png`, `herbe.png`) les **remplace automatiquement** (chargés via stb_image)
+- **Sprites réels du pack** (`assets/ressources/`, chargés via stb_image) rangés dans une **texture array** ; chaque instance référence sa couche
+- **Dispersion par biome** (latitude + relief + bruits *couvert forestier* / *aridité*) :
+  - **équatorial / tropical** → feuillus verts lush + **palmiers**
+  - **tempéré** → feuillus verts / dorés / **oranges** (variantes saisonnières) + buissons + champignons
+  - **boréal / taïga** → feuillus sombres denses + jeunes pousses + rochers
+  - **ceinture sèche subtropicale** → **arbres morts** + rochers + buissons épars
+  - **toundra / polaire** et **hautes montagnes** → rochers + arbres morts, très épars
+  - densité modulée → **forêts en amas**, jamais sur l'eau
+- **Rendu instancié** (`glDrawArraysInstanced`, ~dizaines de milliers de props) + **alpha-test** (bords nets) ; visibles **uniquement près du sol**, fondu avec la distance → coût nul depuis l'orbite
+- La sélection des sprites par catégorie est centralisée dans `catalog()` ([PropLayer.cpp](src/renderer/props/PropLayer.cpp)) — facile à enrichir
 
 ### Vue système & voyage interplanétaire ✅
 - **Vue orbitale** : une étoile centrale + les **planètes sur leurs orbites animées** (anneaux), chaque planète éclairée par l'étoile — bouton **« Vue système »** dans la barre du haut

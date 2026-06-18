@@ -7,14 +7,17 @@
 #include <stb_image.h>
 
 #include <vector>
-#include <cmath>
+#include <string>
 #include <array>
+#include <algorithm>
+#include <cmath>
+#include <iostream>
 
 namespace wl {
 
 namespace {
 
-// Hash deterministe -> [0,1) a partir de deux entiers.
+// Hash deterministe -> [0,1).
 float hash(uint32_t a, uint32_t b) {
     uint32_t h = a * 374761393u + b * 668265263u;
     h = (h ^ (h >> 13)) * 1274126177u;
@@ -22,115 +25,77 @@ float hash(uint32_t a, uint32_t b) {
     return (h & 0xFFFFFFu) / float(0x1000000u);
 }
 
-constexpr int kTile = 128;                  // taille d'une tuile de l'atlas
-constexpr int kCols = 3;                    // 3x3 tuiles
-constexpr int kAtlasW = kTile * kCols;      // 384
+constexpr int kSprite = 64; // taille des couches de la texture array
 
-inline void px(std::vector<uint8_t>& img, int gx, int gy,
-               uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-    if (gx < 0 || gy < 0 || gx >= kAtlasW || gy >= kAtlasW) return;
-    size_t i = (size_t(gy) * kAtlasW + gx) * 4;
-    img[i] = r; img[i + 1] = g; img[i + 2] = b; img[i + 3] = a;
+// Categories de props et leur taille de base (unites monde, rayon planete = 1).
+enum Cat { GreenTree, DarkTree, GoldTree, OrangeTree, Palm,
+           DeadTree, Bush, Rock, Mushroom, Sprout, CatCount };
+
+struct CatDef {
+    float size;                       // taille de base du sprite (hauteur monde)
+    std::vector<std::string> files;   // sprites du pack pour cette categorie
+};
+
+// Selection curated dans le pack de l'utilisateur (assets/ressources/).
+// Les arbres sont des feuillus a variantes saisonnieres : on les repartit par
+// couleur (vert lush / sombre / dore / orange) selon le biome.
+const std::array<CatDef, CatCount>& catalog() {
+    static const std::array<CatDef, CatCount> c = {{
+        /* GreenTree  */ {0.0038f, {"ME_Singles_Camping_48x48_Tree_1.png",
+                                    "ME_Singles_Camping_48x48_Tree_2.png",
+                                    "ME_Singles_Camping_48x48_Tree_8.png",
+                                    "ME_Singles_Camping_48x48_Tree_14.png"}},
+        /* DarkTree   */ {0.0040f, {"ME_Singles_Camping_48x48_Tree_73.png",
+                                    "ME_Singles_Camping_48x48_Tree_74.png",
+                                    "ME_Singles_Camping_48x48_Tree_97.png",
+                                    "ME_Singles_Camping_48x48_Tree_98.png"}},
+        /* GoldTree   */ {0.0036f, {"ME_Singles_Camping_48x48_Tree_46.png",
+                                    "ME_Singles_Camping_48x48_Tree_47.png",
+                                    "ME_Singles_Camping_48x48_Tree_48.png"}},
+        /* OrangeTree */ {0.0037f, {"ME_Singles_Camping_48x48_Tree_4.png",
+                                    "ME_Singles_Camping_48x48_Tree_5.png",
+                                    "ME_Singles_Camping_48x48_Tree_19.png",
+                                    "ME_Singles_Camping_48x48_Tree_20.png"}},
+        /* Palm       */ {0.0046f, {"21_Beach_48x48_Palm_Tree.png",
+                                    "ME_Singles_Swimming_Pool_48x48_Palm_1.png",
+                                    "ME_Singles_Swimming_Pool_48x48_Palm_2.png",
+                                    "ME_Singles_Swimming_Pool_48x48_Palm_3.png"}},
+        /* DeadTree   */ {0.0034f, {"ME_Singles_Camping_48x48_Tree_Dead_1.png",
+                                    "ME_Singles_Camping_48x48_Tree_Dead_2.png",
+                                    "ME_Singles_Camping_48x48_Tree_Dead_Stick_1.png",
+                                    "ME_Singles_Camping_48x48_Tree_Dead_Stick_2.png"}},
+        /* Bush       */ {0.0024f, {"ME_Singles_Garden_48x48_Bush_1.png",
+                                    "ME_Singles_Garden_48x48_Bush_2.png",
+                                    "ME_Singles_Garden_48x48_Bush_10.png"}},
+        /* Rock       */ {0.0021f, {"ME_Singles_Camping_48x48_Rock_1.png",
+                                    "ME_Singles_Camping_48x48_Rock_2.png",
+                                    "ME_Singles_Camping_48x48_Rock_3.png",
+                                    "ME_Singles_Camping_48x48_Rock_4.png"}},
+        /* Mushroom   */ {0.0015f, {"ME_Singles_Camping_48x48_Mushrooms_1.png",
+                                    "ME_Singles_Camping_48x48_Mushrooms_2.png"}},
+        /* Sprout     */ {0.0018f, {"ME_Singles_Camping_48x48_Sprout_1.png",
+                                    "ME_Singles_Camping_48x48_Sprout_2.png"}},
+    }};
+    return c;
 }
 
-// Remplit une tuile avec un sprite placeholder dessine a la main.
-// (x,y) local 0..127, y=0 en haut de la tuile = haut du sprite.
-void drawPlaceholder(std::vector<uint8_t>& img, int type) {
-    int tx = (type % kCols) * kTile;
-    int ty = (type / kCols) * kTile;
-    auto P = [&](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
-        // legere variation pour casser l'aplat
-        float n = hash(uint32_t(x + 7), uint32_t(y + type * 31)) * 0.18f - 0.09f;
-        auto v = [&](uint8_t c) {
-            int o = int(c * (1.0f + n));
-            return uint8_t(o < 0 ? 0 : o > 255 ? 255 : o);
-        };
-        px(img, tx + x, ty + y, v(r), v(g), v(b), 255);
-    };
-    auto disc = [&](int cx, int cy, int rx, int ry,
-                    uint8_t r, uint8_t g, uint8_t b) {
-        for (int y = cy - ry; y <= cy + ry; ++y)
-            for (int x = cx - rx; x <= cx + rx; ++x) {
-                float dx = (x - cx) / float(rx), dy = (y - cy) / float(ry);
-                if (dx * dx + dy * dy <= 1.0f) P(x, y, r, g, b);
-            }
-    };
-    auto rect = [&](int x0, int y0, int x1, int y1,
-                    uint8_t r, uint8_t g, uint8_t b) {
-        for (int y = y0; y <= y1; ++y)
-            for (int x = x0; x <= x1; ++x) P(x, y, r, g, b);
-    };
+// Plage de couches (layers) occupee par chaque categorie dans la texture array.
+struct Layout {
+    std::array<int, CatCount> start{};
+    std::array<int, CatCount> count{};
+    int total = 0;
+};
 
-    switch (type) {
-        case PropLayer::Arbre: // feuillu : tronc + houppier rond
-            rect(60, 78, 68, 124, 96, 64, 36);
-            disc(64, 52, 40, 42, 46, 120, 52);
-            disc(48, 64, 24, 24, 40, 108, 46);
-            disc(82, 62, 24, 24, 52, 128, 58);
-            break;
-        case PropLayer::Sapin: // conifere : tronc + etages triangulaires
-            rect(61, 96, 67, 124, 90, 60, 34);
-            for (int s = 0; s < 3; ++s) {
-                int top = 14 + s * 30, base = top + 42, half = 18 + s * 14;
-                for (int y = top; y <= base; ++y) {
-                    float t = (y - top) / float(base - top);
-                    int w = int(half * t);
-                    for (int x = 64 - w; x <= 64 + w; ++x) P(x, y, 34, 96, 52);
-                }
-            }
-            break;
-        case PropLayer::Buisson: // buisson : amas de boules vertes
-            disc(64, 96, 34, 30, 56, 122, 58);
-            disc(46, 100, 22, 20, 48, 112, 50);
-            disc(82, 100, 22, 20, 50, 118, 54);
-            break;
-        case PropLayer::Cactus: // cactus : tige + deux bras
-            rect(58, 48, 70, 124, 42, 110, 62);
-            rect(40, 78, 58, 90, 42, 110, 62);
-            rect(40, 64, 50, 90, 42, 110, 62);
-            rect(70, 70, 88, 82, 42, 110, 62);
-            rect(78, 56, 88, 82, 42, 110, 62);
-            break;
-        case PropLayer::Rocher: // rocher : galet gris
-            disc(64, 98, 42, 28, 118, 116, 120);
-            disc(52, 92, 18, 14, 138, 136, 140);
-            rect(24, 116, 104, 124, 96, 94, 98);
-            break;
-        case PropLayer::Herbe: // touffe : quelques brins
-            for (int s = 0; s < 7; ++s) {
-                int bx = 40 + s * 8;
-                int topY = 84 + (s % 3) * 8;
-                int lean = (s % 2 ? 1 : -1) * (3 + s % 4);
-                for (int y = topY; y <= 124; ++y) {
-                    float t = (y - topY) / float(124 - topY);
-                    int x = bx + int(lean * (1.0f - t));
-                    P(x, y, 74, 142, 60);
-                    P(x + 1, y, 70, 134, 56);
-                }
-            }
-            break;
-        default: break;
+Layout computeLayout() {
+    Layout L;
+    int s = 0;
+    for (int c = 0; c < CatCount; ++c) {
+        L.start[c] = s;
+        L.count[c] = int(catalog()[c].files.size());
+        s += L.count[c];
     }
-}
-
-// Charge un PNG (RGBA) et le redimensionne (plus proche voisin) dans une tuile.
-bool overlayPng(std::vector<uint8_t>& img, int type, const std::string& path) {
-    int w = 0, h = 0, n = 0;
-    unsigned char* data = stbi_load(path.c_str(), &w, &h, &n, 4);
-    if (!data) return false;
-    int tx = (type % kCols) * kTile;
-    int ty = (type / kCols) * kTile;
-    for (int y = 0; y < kTile; ++y) {
-        int sy = y * h / kTile;
-        for (int x = 0; x < kTile; ++x) {
-            int sx = x * w / kTile;
-            const unsigned char* s = data + (size_t(sy) * w + sx) * 4;
-            size_t d = (size_t(ty + y) * kAtlasW + (tx + x)) * 4;
-            img[d] = s[0]; img[d + 1] = s[1]; img[d + 2] = s[2]; img[d + 3] = s[3];
-        }
-    }
-    stbi_image_free(data);
-    return true;
+    L.total = s;
+    return L;
 }
 
 } // namespace
@@ -142,94 +107,130 @@ PropLayer::~PropLayer() {
     if (m_vao) glDeleteVertexArrays(1, &m_vao);
 }
 
-void PropLayer::buildAtlas(const std::string& assetsDir) {
-    std::vector<uint8_t> img(size_t(kAtlasW) * kAtlasW * 4, 0); // transparent
-    for (int t = 0; t <= Herbe; ++t) drawPlaceholder(img, t);
-
-    // Les PNG fournis par l'utilisateur ecrasent les placeholders.
-    const std::array<std::pair<int, const char*>, 6> files = {{
-        {Arbre, "arbre"}, {Sapin, "sapin"}, {Buisson, "buisson"},
-        {Cactus, "cactus"}, {Rocher, "rocher"}, {Herbe, "herbe"},
-    }};
-    for (auto& f : files)
-        overlayPng(img, f.first, assetsDir + "/assets/textures/props/" + f.second + ".png");
-
+void PropLayer::buildTextureArray(const std::string& assetsDir) {
+    Layout L = computeLayout();
     glGenTextures(1, &m_tex);
-    glBindTexture(GL_TEXTURE_2D, m_tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, kAtlasW, kAtlasW, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, img.data());
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, m_tex);
+    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, kSprite, kSprite, L.total,
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    std::vector<uint8_t> tile(size_t(kSprite) * kSprite * 4);
+    const std::string base = assetsDir + "/assets/ressources/";
+
+    for (int c = 0; c < CatCount; ++c) {
+        const auto& files = catalog()[c].files;
+        for (int k = 0; k < int(files.size()); ++k) {
+            int layer = L.start[c] + k;
+            int w = 0, h = 0, n = 0;
+            unsigned char* data = stbi_load((base + files[k]).c_str(), &w, &h, &n, 4);
+            if (!data) {
+                std::cerr << "[Props] sprite introuvable: " << files[k] << "\n";
+                std::fill(tile.begin(), tile.end(), 0); // couche vide
+            } else {
+                // Redimensionnement plus-proche-voisin vers kSprite x kSprite.
+                for (int y = 0; y < kSprite; ++y) {
+                    int sy = y * h / kSprite;
+                    for (int x = 0; x < kSprite; ++x) {
+                        int sx = x * w / kSprite;
+                        const unsigned char* sp = data + (size_t(sy) * w + sx) * 4;
+                        uint8_t* dp = &tile[(size_t(y) * kSprite + x) * 4];
+                        dp[0] = sp[0]; dp[1] = sp[1]; dp[2] = sp[2]; dp[3] = sp[3];
+                    }
+                }
+                stbi_image_free(data);
+            }
+            glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, kSprite, kSprite, 1,
+                            GL_RGBA, GL_UNSIGNED_BYTE, tile.data());
+        }
+    }
+
+    glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 }
 
 void PropLayer::build(const PlanetMesh& mesh, uint32_t seed, const std::string& assetsDir) {
-    buildAtlas(assetsDir);
+    buildTextureArray(assetsDir);
+    const Layout L = computeLayout();
+
+    // Choisit une categorie selon le biome (r in [0,1) pour le melange).
+    auto pickCat = [](int e_hi, float lat, float forest, float dry, float r) -> int {
+        if (e_hi)                              // hautes montagnes
+            return r < 0.6f ? Rock : (r < 0.8f ? DeadTree : DarkTree);
+        if (lat > 0.72f)                       // toundra / polaire
+            return r < 0.55f ? Rock : DeadTree;
+        if (lat > 0.5f)                        // taiga / boreal
+            return r < 0.7f ? DarkTree : (r < 0.85f ? Sprout : Rock);
+        if (dry > 0.5f && forest < 0.45f)      // ceinture seche subtropicale
+            return r < 0.45f ? DeadTree : (r < 0.8f ? Rock : Bush);
+        if (lat < 0.16f)                       // equatorial / tropical
+            return r < 0.45f ? GreenTree : (r < 0.75f ? Palm : Bush);
+        // tempere : feuillus saisonniers + sous-bois
+        if (r < 0.34f) return GreenTree;
+        if (r < 0.55f) return OrangeTree;
+        if (r < 0.68f) return GoldTree;
+        if (r < 0.86f) return Bush;
+        return Mushroom;
+    };
 
     const auto& dirs = mesh.directions();
     const auto& pos = mesh.positions();
     const auto& elev = mesh.elevations();
 
-    // Instances : pos(3) + size(1) + type(1) = 5 floats.
-    std::vector<float> inst;
+    std::vector<float> inst; // pos(3) + size(1) + layer(1)
     inst.reserve(dirs.size() * 5 * 2);
-    const size_t kMaxInstances = 60000;
+    const size_t kMaxInstances = 70000;
 
     for (size_t i = 0; i < dirs.size() && inst.size() / 5 < kMaxInstances; ++i) {
         float e = elev[i];
-        if (e <= 0.01f) continue; // mer / cotes : pas de props
+        if (e <= 0.01f) continue; // mer / cotes
         glm::vec3 d = dirs[i];
         float radius = glm::length(pos[i]);
-        float lat = std::abs(d.y); // 0 a l'equateur, 1 aux poles
+        float lat = std::abs(d.y);
+        int e_hi = e > 0.5f ? 1 : 0;
 
         // Repere tangent local pour disperser autour du sommet.
         glm::vec3 ref = std::abs(d.y) > 0.99f ? glm::vec3(1, 0, 0) : glm::vec3(0, 1, 0);
         glm::vec3 east = glm::normalize(glm::cross(ref, d));
         glm::vec3 north = glm::cross(d, east);
 
-        // Densite de couvert : bruit basse frequence -> forets en amas.
+        // Couvert forestier (amas) et aridite (deux bruits independants).
         float forest = glm::perlin(d * 5.0f + glm::vec3(float(seed) * 0.013f)) * 0.5f + 0.5f;
+        float dry = glm::perlin(d * 3.0f + glm::vec3(11.0f + float(seed) * 0.007f)) * 0.5f + 0.5f;
 
-        // Choix du biome -> type dominant + densite.
-        int type; float baseProb; float size;
-        if (e > 0.45f) {                 // montagnes
-            type = PropLayer::Rocher; baseProb = 0.35f; size = 0.0055f;
-        } else if (lat > 0.72f) {        // toundra / polaire
-            type = PropLayer::Rocher; baseProb = 0.12f; size = 0.004f;
-        } else if (lat > 0.50f) {        // taiga froide
-            type = PropLayer::Sapin; baseProb = 0.45f * forest; size = 0.0075f;
-        } else if (lat > 0.28f && lat < 0.42f && forest < 0.45f) { // ceinture seche
-            type = PropLayer::Cactus; baseProb = 0.10f; size = 0.005f;
-        } else if (lat < 0.18f) {        // equatorial / jungle
-            type = PropLayer::Arbre; baseProb = 0.55f * (0.4f + forest); size = 0.0085f;
-        } else {                         // tempere
-            type = (forest > 0.5f) ? PropLayer::Arbre : PropLayer::Buisson;
-            baseProb = 0.5f * forest + 0.1f; size = 0.0075f;
-        }
+        // Densite de placement selon le biome.
+        float baseProb;
+        if (e_hi)               baseProb = 0.30f;
+        else if (lat > 0.72f)   baseProb = 0.12f;
+        else if (lat > 0.5f)    baseProb = 0.45f * forest;
+        else if (dry > 0.5f && forest < 0.45f) baseProb = 0.14f;
+        else if (lat < 0.16f)   baseProb = 0.55f * (0.4f + forest);
+        else                    baseProb = 0.5f * forest + 0.12f;
 
-        // Plusieurs tentatives de placement par sommet (densite naturelle).
         for (int k = 0; k < 4; ++k) {
             float r0 = hash(uint32_t(i), uint32_t(k * 17 + 1));
             if (r0 > baseProb) continue;
+            int cat = pickCat(e_hi, lat, forest, dry,
+                              hash(uint32_t(i), uint32_t(k * 13 + 2)));
+            int layer = L.start[cat] +
+                int(hash(uint32_t(i), uint32_t(k * 29 + 4)) * L.count[cat]) % std::max(1, L.count[cat]);
+
             float jx = (hash(uint32_t(i), uint32_t(k * 7 + 3)) - 0.5f) * 0.018f;
             float jy = (hash(uint32_t(i), uint32_t(k * 11 + 5)) - 0.5f) * 0.018f;
             glm::vec3 jd = glm::normalize(d + east * jx + north * jy);
             glm::vec3 p = jd * radius;
-            float s = size * (0.7f + 0.6f * hash(uint32_t(i), uint32_t(k * 23 + 9)));
-            // Type secondaire occasionnel (herbe sous les arbres).
-            int t = type;
-            if (type == PropLayer::Arbre && r0 < baseProb * 0.35f) t = PropLayer::Herbe;
-            inst.insert(inst.end(), {p.x, p.y, p.z, s, float(t)});
+            float s = catalog()[cat].size *
+                      (0.75f + 0.5f * hash(uint32_t(i), uint32_t(k * 23 + 9)));
+            inst.insert(inst.end(), {p.x, p.y, p.z, s, float(layer)});
         }
     }
 
     m_count = int(inst.size() / 5);
 
     // Quad de base : x in [-0.5,0.5] (largeur), y in [0,1] (ancre au sol).
-    // Attributs : aQuad(vec2) + aUV(vec2). v inverse (0 en haut de l'image).
     const float quad[] = {
         -0.5f, 0.0f, 0.0f, 1.0f,
          0.5f, 0.0f, 1.0f, 1.0f,
@@ -270,7 +271,7 @@ void PropLayer::build(const PlanetMesh& mesh, uint32_t seed, const std::string& 
 void PropLayer::draw() const {
     if (m_count <= 0) return;
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, m_tex);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, m_tex);
     glBindVertexArray(m_vao);
     glDrawArraysInstanced(GL_TRIANGLES, 0, 6, m_count);
     glBindVertexArray(0);

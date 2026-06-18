@@ -941,7 +941,6 @@ int main() {
                 propShader.setVec3("uCameraPos", camPos);
                 propShader.setVec3("uSunDir", sunDir);
                 propShader.setFloat("uMaxDist", 0.18f);
-                propShader.setInt("uAtlasCols", propLayers[activePlanet]->atlasCols());
                 propShader.setInt("uAtlas", 0);
                 propLayers[activePlanet]->draw();
             }
