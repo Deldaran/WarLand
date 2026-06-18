@@ -41,40 +41,40 @@ struct CatDef {
 // couleur (vert lush / sombre / dore / orange) selon le biome.
 const std::array<CatDef, CatCount>& catalog() {
     static const std::array<CatDef, CatCount> c = {{
-        /* GreenTree  */ {0.0038f, {"ME_Singles_Camping_48x48_Tree_1.png",
-                                    "ME_Singles_Camping_48x48_Tree_2.png",
-                                    "ME_Singles_Camping_48x48_Tree_8.png",
-                                    "ME_Singles_Camping_48x48_Tree_14.png"}},
-        /* DarkTree   */ {0.0040f, {"ME_Singles_Camping_48x48_Tree_73.png",
-                                    "ME_Singles_Camping_48x48_Tree_74.png",
-                                    "ME_Singles_Camping_48x48_Tree_97.png",
-                                    "ME_Singles_Camping_48x48_Tree_98.png"}},
-        /* GoldTree   */ {0.0036f, {"ME_Singles_Camping_48x48_Tree_46.png",
-                                    "ME_Singles_Camping_48x48_Tree_47.png",
-                                    "ME_Singles_Camping_48x48_Tree_48.png"}},
-        /* OrangeTree */ {0.0037f, {"ME_Singles_Camping_48x48_Tree_4.png",
-                                    "ME_Singles_Camping_48x48_Tree_5.png",
-                                    "ME_Singles_Camping_48x48_Tree_19.png",
-                                    "ME_Singles_Camping_48x48_Tree_20.png"}},
-        /* Palm       */ {0.0046f, {"21_Beach_48x48_Palm_Tree.png",
-                                    "ME_Singles_Swimming_Pool_48x48_Palm_1.png",
-                                    "ME_Singles_Swimming_Pool_48x48_Palm_2.png",
-                                    "ME_Singles_Swimming_Pool_48x48_Palm_3.png"}},
-        /* DeadTree   */ {0.0034f, {"ME_Singles_Camping_48x48_Tree_Dead_1.png",
-                                    "ME_Singles_Camping_48x48_Tree_Dead_2.png",
-                                    "ME_Singles_Camping_48x48_Tree_Dead_Stick_1.png",
-                                    "ME_Singles_Camping_48x48_Tree_Dead_Stick_2.png"}},
-        /* Bush       */ {0.0024f, {"ME_Singles_Garden_48x48_Bush_1.png",
-                                    "ME_Singles_Garden_48x48_Bush_2.png",
-                                    "ME_Singles_Garden_48x48_Bush_10.png"}},
-        /* Rock       */ {0.0021f, {"ME_Singles_Camping_48x48_Rock_1.png",
-                                    "ME_Singles_Camping_48x48_Rock_2.png",
-                                    "ME_Singles_Camping_48x48_Rock_3.png",
-                                    "ME_Singles_Camping_48x48_Rock_4.png"}},
-        /* Mushroom   */ {0.0015f, {"ME_Singles_Camping_48x48_Mushrooms_1.png",
-                                    "ME_Singles_Camping_48x48_Mushrooms_2.png"}},
-        /* Sprout     */ {0.0018f, {"ME_Singles_Camping_48x48_Sprout_1.png",
-                                    "ME_Singles_Camping_48x48_Sprout_2.png"}},
+        /* GreenTree  */ {0.00110f, {"ME_Singles_Camping_48x48_Tree_1.png",
+                                     "ME_Singles_Camping_48x48_Tree_2.png",
+                                     "ME_Singles_Camping_48x48_Tree_8.png",
+                                     "ME_Singles_Camping_48x48_Tree_14.png"}},
+        /* DarkTree   */ {0.00115f, {"ME_Singles_Camping_48x48_Tree_73.png",
+                                     "ME_Singles_Camping_48x48_Tree_74.png",
+                                     "ME_Singles_Camping_48x48_Tree_97.png",
+                                     "ME_Singles_Camping_48x48_Tree_98.png"}},
+        /* GoldTree   */ {0.00104f, {"ME_Singles_Camping_48x48_Tree_46.png",
+                                     "ME_Singles_Camping_48x48_Tree_47.png",
+                                     "ME_Singles_Camping_48x48_Tree_48.png"}},
+        /* OrangeTree */ {0.00106f, {"ME_Singles_Camping_48x48_Tree_4.png",
+                                     "ME_Singles_Camping_48x48_Tree_5.png",
+                                     "ME_Singles_Camping_48x48_Tree_19.png",
+                                     "ME_Singles_Camping_48x48_Tree_20.png"}},
+        /* Palm       */ {0.00130f, {"21_Beach_48x48_Palm_Tree.png",
+                                     "ME_Singles_Swimming_Pool_48x48_Palm_1.png",
+                                     "ME_Singles_Swimming_Pool_48x48_Palm_2.png",
+                                     "ME_Singles_Swimming_Pool_48x48_Palm_3.png"}},
+        /* DeadTree   */ {0.00098f, {"ME_Singles_Camping_48x48_Tree_Dead_1.png",
+                                     "ME_Singles_Camping_48x48_Tree_Dead_2.png",
+                                     "ME_Singles_Camping_48x48_Tree_Dead_Stick_1.png",
+                                     "ME_Singles_Camping_48x48_Tree_Dead_Stick_2.png"}},
+        /* Bush       */ {0.00070f, {"ME_Singles_Garden_48x48_Bush_1.png",
+                                     "ME_Singles_Garden_48x48_Bush_2.png",
+                                     "ME_Singles_Garden_48x48_Bush_10.png"}},
+        /* Rock       */ {0.00060f, {"ME_Singles_Camping_48x48_Rock_1.png",
+                                     "ME_Singles_Camping_48x48_Rock_2.png",
+                                     "ME_Singles_Camping_48x48_Rock_3.png",
+                                     "ME_Singles_Camping_48x48_Rock_4.png"}},
+        /* Mushroom   */ {0.00045f, {"ME_Singles_Camping_48x48_Mushrooms_1.png",
+                                     "ME_Singles_Camping_48x48_Mushrooms_2.png"}},
+        /* Sprout     */ {0.00052f, {"ME_Singles_Camping_48x48_Sprout_1.png",
+                                     "ME_Singles_Camping_48x48_Sprout_2.png"}},
     }};
     return c;
 }
@@ -181,8 +181,8 @@ void PropLayer::build(const PlanetMesh& mesh, uint32_t seed, const std::string& 
     const auto& elev = mesh.elevations();
 
     std::vector<float> inst; // pos(3) + size(1) + layer(1)
-    inst.reserve(dirs.size() * 5 * 2);
-    const size_t kMaxInstances = 70000;
+    inst.reserve(dirs.size() * 5 * 4);
+    const size_t kMaxInstances = 280000;
 
     for (size_t i = 0; i < dirs.size() && inst.size() / 5 < kMaxInstances; ++i) {
         float e = elev[i];
@@ -201,16 +201,16 @@ void PropLayer::build(const PlanetMesh& mesh, uint32_t seed, const std::string& 
         float forest = glm::perlin(d * 5.0f + glm::vec3(float(seed) * 0.013f)) * 0.5f + 0.5f;
         float dry = glm::perlin(d * 3.0f + glm::vec3(11.0f + float(seed) * 0.007f)) * 0.5f + 0.5f;
 
-        // Densite de placement selon le biome.
+        // Densite de placement selon le biome (arbres petits -> forets denses).
         float baseProb;
-        if (e_hi)               baseProb = 0.30f;
-        else if (lat > 0.72f)   baseProb = 0.12f;
-        else if (lat > 0.5f)    baseProb = 0.45f * forest;
-        else if (dry > 0.5f && forest < 0.45f) baseProb = 0.14f;
-        else if (lat < 0.16f)   baseProb = 0.55f * (0.4f + forest);
-        else                    baseProb = 0.5f * forest + 0.12f;
+        if (e_hi)               baseProb = 0.40f;
+        else if (lat > 0.72f)   baseProb = 0.18f;
+        else if (lat > 0.5f)    baseProb = 0.75f * forest;
+        else if (dry > 0.5f && forest < 0.45f) baseProb = 0.22f;
+        else if (lat < 0.16f)   baseProb = 0.85f * (0.4f + forest);
+        else                    baseProb = 0.8f * forest + 0.18f;
 
-        for (int k = 0; k < 4; ++k) {
+        for (int k = 0; k < 10; ++k) {
             float r0 = hash(uint32_t(i), uint32_t(k * 17 + 1));
             if (r0 > baseProb) continue;
             int cat = pickCat(e_hi, lat, forest, dry,

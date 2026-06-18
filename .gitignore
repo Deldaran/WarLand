@@ -35,3 +35,6 @@ Thumbs.db
 
 # Layout ImGui généré au runtime
 imgui.ini
+
+# Pack de sprites (volumineux, garde en local)
+/assets/ressources/

@@ -58,6 +58,7 @@ struct LayerState {
     bool religion = false;
     bool langue = false;
     bool conflits = false;
+    bool nuages = true; // affichage des nuages (visibles aussi depuis le sol)
 };
 
 // Formatage compact des grands nombres (population, stocks).
@@ -223,6 +224,7 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
         ImGui::Checkbox("Religion", &layers.religion);
         ImGui::Checkbox("Langue", &layers.langue);
         ImGui::Checkbox("Conflits", &layers.conflits);
+        ImGui::Checkbox("Nuages", &layers.nuages);
         ImGui::Separator();
         ImGui::TextDisabled("Couches : Politique, Population,");
         ImGui::TextDisabled("Langue (cultures).");
@@ -1033,9 +1035,10 @@ int main() {
                 glDepthMask(GL_TRUE);
             }
 
-            // 4. Nuages volumetriques (raymarching) avec LOD + fondu au zoom.
-            //    Par-dessus l'atmosphere -> visibles aussi sur les cotes / au limbe.
-            float cloudFade = glm::smoothstep(1.25f, 2.2f, camDist); // 0 pres du sol
+            // 4. Nuages volumetriques (raymarching) avec LOD.
+            //    Par-dessus l'atmosphere -> visibles aussi sur les cotes / au limbe,
+            //    ET depuis le sol (on lève les yeux vers le ciel nuageux).
+            float cloudFade = layers.nuages ? 1.0f : 0.0f;
             if (cloudFade > 0.001f && !snap.cloud.empty()) {
                 // Mise a jour de la texture nuageuse (throttlee ~5 Hz).
                 glActiveTexture(GL_TEXTURE0);
@@ -1056,7 +1059,9 @@ int main() {
                 glDisable(GL_DEPTH_TEST);
                 glDepthMask(GL_FALSE);
                 glEnable(GL_CULL_FACE);
-                glCullFace(GL_BACK);
+                // Si la camera est sous la coquille nuageuse (vue au sol), on rend
+                // la face interne pour voir les nuages depuis en dessous.
+                glCullFace(camDist < kCloudDrawRadius ? GL_FRONT : GL_BACK);
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                 cloudShader.bind();
