@@ -326,10 +326,11 @@ La simulation est **découplée du rendu** ([SimulationWorld](src/simulation/Sim
 - **Commerce freiné par la langue** : les échanges entre provinces de cultures différentes sont réduits (barrière culturelle)
 - **Multi-planètes** : un **système de 3 mondes** générés différemment, **simulés en parallèle** (chacun sa géographie, ses civilisations, son climat) — [SimulationRunner](src/simulation/SimulationRunner.h) gère N `SimulationWorld`. Un **sélecteur « Monde k/N »** permet de voyager entre les planètes ; le rendu n'affiche que la planète active (ressources de rendu partagées) → coût GPU maîtrisé
 
-### Échelles de temps réelles ✅
-- La vitesse n'est plus un multiplicateur abstrait mais des **échelles concrètes** (1 seconde réelle = …) : **Réel** (1 s), **Heure** (1 h), **Jour** (1 j), **Mois** (1 mois), **Année** (1 an)
-- « Réel » prépare l'observation des **batailles** en temps réel ; « Heure/Jour » pour suivre l'évolution fine ; « Mois/Année » pour les dynamiques longues
-- Implémenté comme un **taux jours/seconde** dans le runner (`setDaysPerSecond`)
+### Échelles de temps réelles + curseur ✅
+- La vitesse n'est plus un multiplicateur abstrait mais des **échelles concrètes** (1 seconde réelle = …) : **Réel** (1 s), **Heure**, **Jour**, **Mois**, **Année**
+- **Curseur** par échelle : le multiplicateur se règle finement (ex. 1→24 heures/s, 1→30 jours/s) → pas seulement « heure par heure » mais « 5 heures par seconde » etc.
+- « Réel » prépare l'observation des **batailles** ; « Heure/Jour » pour le détail ; « Mois/Année » pour le long terme
+- **Rotation de la planète, jour/nuit et évolution des nuages calés sur le temps in-game** : tout ralentit en mode lent (figé en Réel) et accélère en mode rapide → la météo « vit » à la vitesse choisie
 
 ### Vue système & voyage interplanétaire ✅
 - **Vue orbitale** : une étoile centrale + les **planètes sur leurs orbites animées** (anneaux), chaque planète éclairée par l'étoile — bouton **« Vue système »** dans la barre du haut

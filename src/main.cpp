@@ -107,6 +107,7 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
             LayerState& layers, const wl::Camera& cam,
             const wl::PlanetMesh& planet, const wl::ProvinceMap& provinces,
             int& activePlanet, int planetCount, bool isSystem, bool& toggleView,
+            int& timeUnit, int& timeMult,
             int selectedProvince, int selectedCiv, double fps) {
     ImGuiViewport* vp = ImGui::GetMainViewport();
 
@@ -130,23 +131,31 @@ void drawUI(wl::SimulationRunner& runner, const wl::SimulationRunner::Snapshot& 
         ImGui::TextColored(ImVec4(0.7f, 0.9f, 0.7f, 1), "%s", seasonName(snap.timeDays));
         ImGui::SameLine(0, 30);
         if (ImGui::Button(runner.paused() ? "Play" : "Pause")) runner.setPaused(!runner.paused());
-        // Echelles de temps : 1 seconde reelle = ... de temps in-game.
-        struct TimeScale { const char* name; double daysPerSec; };
+        // Echelles de temps : 1 seconde reelle = `mult` x unite. Le curseur regle
+        // le multiplicateur (ex. 1 a 5 heures/s, 1 a 30 jours/s...).
+        struct TimeScale { const char* name; double unit; int maxMult; };
         static const TimeScale scales[] = {
-            {"Reel",  1.0 / 86400.0}, // 1 s = 1 s
-            {"Heure", 1.0 / 24.0},    // 1 s = 1 h
-            {"Jour",  1.0},           // 1 s = 1 jour
-            {"Mois",  30.0},          // 1 s = 1 mois
-            {"Annee", 365.0},         // 1 s = 1 an
+            {"Reel",  1.0 / 86400.0, 60},
+            {"Heure", 1.0 / 24.0,    24},
+            {"Jour",  1.0,           30},
+            {"Mois",  30.0,          12},
+            {"Annee", 365.0,         10},
         };
-        double cur = runner.daysPerSecond();
-        for (const auto& s : scales) {
+        const int nScales = 5;
+        timeUnit = std::clamp(timeUnit, 0, nScales - 1);
+        for (int i = 0; i < nScales; ++i) {
             ImGui::SameLine();
-            bool active = std::abs(cur - s.daysPerSec) < s.daysPerSec * 0.01;
+            bool active = (i == timeUnit);
             if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.3f, 1.0f));
-            if (ImGui::Button(s.name)) { runner.setDaysPerSecond(s.daysPerSec); runner.setPaused(false); }
+            if (ImGui::Button(scales[i].name)) { timeUnit = i; timeMult = 1; runner.setPaused(false); }
             if (active) ImGui::PopStyleColor();
         }
+        timeMult = std::clamp(timeMult, 1, scales[timeUnit].maxMult);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(150);
+        std::string fmt = std::string("%d ") + scales[timeUnit].name + "/s";
+        ImGui::SliderInt("##timemult", &timeMult, 1, scales[timeUnit].maxMult, fmt.c_str());
+        runner.setDaysPerSecond(scales[timeUnit].unit * timeMult);
         ImGui::SameLine(0, 40);
         double stab = snap.stability * 100.0;
         ImVec4 stabCol = stab > 75 ? ImVec4(0.4f, 0.9f, 0.4f, 1)
@@ -431,6 +440,7 @@ int main() {
             planetProvinces.push_back(std::move(prov));
         }
         int activePlanet = 0, prevPlanet = 0;
+        int timeUnit = 3, timeMult = 1; // echelle de temps (defaut : Mois x1)
 
         // Vue : planete (zoom sur un monde) ou systeme (orbites des planetes).
         enum class ViewMode { Planet, System };
@@ -681,13 +691,18 @@ int main() {
             glm::mat4 viewProj = proj * view;
             glm::vec3 camPos = camera.position();
 
-            // Le soleil tourne lentement autour de la planete (cycle jour/nuit).
-            float sunAngle = static_cast<float>(now) * 0.05f;
+            // Tout est cale sur le TEMPS IN-GAME : la rotation de la planete, le
+            // jour/nuit et l'evolution des nuages ralentissent/accelerent avec
+            // l'echelle de temps choisie (figes en "Reel", rapides en "Annee").
+            const double TWO_PI = 6.283185307;
+            // Rotation propre : ~1 tour tous les 6 jours in-game.
+            float planetSpin = static_cast<float>(std::fmod(snap.timeDays, 36000.0)
+                                                   * (TWO_PI / 6.0));
+            // Le soleil decrit un cycle annuel (saisons) -> bornage pour la precision.
+            float sunAngle = static_cast<float>(std::fmod(snap.timeDays, 365.0) / 365.0 * TWO_PI);
             glm::vec3 sunDir = glm::normalize(
                 glm::vec3(std::cos(sunAngle), 0.25f, std::sin(sunAngle)));
 
-            // Rotation propre lente de la planete (partagee avec les nuages).
-            float planetSpin = static_cast<float>(now) * 0.03f;
             glm::mat4 planetModel = glm::rotate(glm::mat4(1.0f),
                 planetSpin, glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -935,7 +950,7 @@ int main() {
             bool toggleView = false;
             drawUI(runner, snap, layers, camera, planet, provinces,
                    activePlanet, kNumPlanets, viewMode == ViewMode::System, toggleView,
-                   selectedProvince, selectedCiv, fps);
+                   timeUnit, timeMult, selectedProvince, selectedCiv, fps);
             if (toggleView) {
                 if (viewMode == ViewMode::System) {
                     viewMode = ViewMode::Planet;
