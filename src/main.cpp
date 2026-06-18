@@ -1011,12 +1011,15 @@ int main() {
             //    Dessinee AVANT les nuages pour que ceux-ci restent visibles au limbe.
             {
                 glm::mat4 atmoModel = glm::scale(glm::mat4(1.0f), glm::vec3(kAtmoDrawRadius));
-                glDisable(GL_DEPTH_TEST);
-                glDepthMask(GL_FALSE);
-                glEnable(GL_CULL_FACE);
                 // Si la camera est DANS l'atmosphere (vue au sol), on rend la face
                 // interne -> ciel bleu vu d'en bas. Sinon halo vu de l'espace.
                 bool inside = camDist < kAtmoDrawRadius;
+                // Au sol : test de profondeur ACTIF -> le relief occulte le glow
+                // atmospherique. Sinon le sol lointain serait lave en bleu et
+                // donnerait l'impression d'un ciel (arbres "flottant").
+                if (inside) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+                glDepthMask(GL_FALSE);
+                glEnable(GL_CULL_FACE);
                 glCullFace(inside ? GL_FRONT : GL_BACK);
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_ONE, GL_ONE);   // additif (glow)
