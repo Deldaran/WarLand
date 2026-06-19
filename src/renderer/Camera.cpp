@@ -101,11 +101,20 @@ glm::mat4 Camera::viewMatrix() const {
 }
 
 glm::mat4 Camera::projectionMatrix() const {
-    // near/far adaptatifs selon l'altitude -> bonne precision du depth buffer
-    // (evite de voir a travers la planete).
-    float alt = std::max(0.0f, m_distance - 1.0f); // altitude au-dessus du niveau de la mer
-    float nearP = std::clamp(alt * 0.25f, 0.0008f, 2.0f);
-    float farP = std::max(m_distance + 8.0f, 6.0f);
+    float nearP, farP;
+    if (m_mode == Mode::Surface) {
+        // Au sol : on est toujours a hauteur d'oeil du relief (quelques 1e-4 au
+        // dessus du sol LOCAL, meme sur une montagne). Le near doit donc rester
+        // tres petit, sinon il coupe le sol au pied de la camera. Le reversed-Z
+        // garde une excellente precision malgre le grand rapport far/near.
+        nearP = 0.00012f;
+        farP = std::max(m_distance + 8.0f, 6.0f);
+    } else {
+        // Orbite : near adaptatif selon l'altitude au-dessus du niveau de la mer.
+        float alt = std::max(0.0f, m_distance - 1.0f);
+        nearP = std::clamp(alt * 0.25f, 0.0008f, 2.0f);
+        farP = std::max(m_distance + 8.0f, 6.0f);
+    }
     glm::mat4 proj = glm::perspective(glm::radians(m_fovDeg), m_aspect, nearP, farP);
     // Reversed-Z : z_ndc -> 1 - z_ndc (combine avec clear=0 + GL_GREATER).
     // Repartit la precision du depth buffer de facon quasi uniforme -> plus de
