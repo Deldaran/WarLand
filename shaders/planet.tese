@@ -75,10 +75,10 @@ void main() {
     float elev = tcElev[0]*u + tcElev[1]*v + tcElev[2]*w;
 
     // --- Detail fin (rugosite) : ajoute du relief la ou c'est tres tesselle ---
-    // Amplitude tres faible (+-0.0002) : ce micro-relief decale la surface
+    // Amplitude tres faible (+-0.000075) : ce micro-relief decale la surface
     // RENDUE sans decaler les props -> trop fort, les arbres "flottent". On le
     // garde discret, et les props sont legerement enterres (voir PropLayer).
-    float d = (fbm(pos * 45.0) - 0.5) * 0.0004;
+    float d = (fbm(pos * 45.0) - 0.5) * 0.00015;
     pos += nrm * d;
 
     vec4 worldPos = uModel * vec4(pos, 1.0);

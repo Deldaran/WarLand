@@ -223,11 +223,11 @@ void PropLayer::build(const PlanetMesh& mesh, uint32_t seed, const std::string& 
             float jx = (hash(uint32_t(i), uint32_t(k * 7 + 3)) - 0.5f) * 0.008f;
             float jy = (hash(uint32_t(i), uint32_t(k * 11 + 5)) - 0.5f) * 0.008f;
             glm::vec3 jd = glm::normalize(d + east * jx + north * jy);
-            // Base legerement ENTERREE (-0.0004) : couvre le micro-relief de la
-            // tessellation (+-0.0002) + le jitter -> le prop ne flotte jamais
-            // (sa base d'herbe reste plantee dans le sol).
-            glm::vec3 p = jd * (radius - 0.0004f);
-            float s = catalog()[cat].size *
+            // Base legerement ENTERREE (-0.00012) : couvre le micro-relief de la
+            // tessellation (+-0.000075) + le jitter -> le prop ne flotte jamais.
+            glm::vec3 p = jd * (radius - 0.00012f);
+            // Echelle reduite (planete parait plus grande -> props plus petits/humains).
+            float s = catalog()[cat].size * 0.5f *
                       (0.75f + 0.5f * hash(uint32_t(i), uint32_t(k * 23 + 9)));
             inst.insert(inst.end(), {p.x, p.y, p.z, s, float(layer)});
         }

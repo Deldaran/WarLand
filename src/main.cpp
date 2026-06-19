@@ -805,12 +805,12 @@ int main() {
                 glm::vec3 wdir = glm::normalize(camera.position());
                 glm::vec3 mdir = glm::transpose(glm::mat3(planetModel)) * wdir;
                 float terrain = planet.heightAt(mdir);
-                float target = terrain + 0.0008f;       // hauteur d'oeil (parmi les arbres)
+                float target = terrain + 0.00035f;      // oeil bas -> planete parait plus grande
                 if (groundFollow < 0.0f) groundFollow = target; // init
                 float k = std::clamp(static_cast<float>(dt) * 5.0f, 0.0f, 1.0f);
                 groundFollow += (target - groundFollow) * k;    // lissage temporel
-                // Plancher dur (anti-clip) au-dessus du detail de tessellation (+-0.0002).
-                float follow = std::max(groundFollow, terrain + 0.0005f);
+                // Plancher dur (anti-clip) au-dessus du detail de tessellation (+-0.000075).
+                float follow = std::max(groundFollow, terrain + 0.0002f);
                 if (camera.distance() < follow) camera.setDistance(follow);
                 surfEyeAlt = camera.distance() - terrain; // pour la vitesse de marche
             } else {
