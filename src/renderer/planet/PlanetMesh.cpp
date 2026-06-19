@@ -25,6 +25,23 @@ float fbm(glm::vec3 p, int octaves, float lacunarity, float gain) {
     return norm > 0.0f ? sum / norm : 0.0f;
 }
 
+// Bruit "ridged" (ridged multifractal) : cretes nettes -> chaines de montagnes.
+// Renvoie ~[0, 1], avec des aretes vives la ou le bruit change de signe.
+float ridged(glm::vec3 p, int octaves) {
+    float sum = 0.0f, amp = 0.5f, freq = 1.0f, prev = 1.0f, norm = 0.0f;
+    for (int i = 0; i < octaves; ++i) {
+        float n = 1.0f - std::fabs(glm::perlin(p * freq));
+        n *= n;          // accentue les cretes
+        n *= prev;       // module par l'octave precedente (multifractal)
+        prev = n;
+        sum += n * amp;
+        norm += amp;
+        freq *= 2.0f;
+        amp *= 0.5f;
+    }
+    return norm > 0.0f ? sum / norm : 0.0f;
+}
+
 // Sommet intermediaire du mesh pendant la generation.
 struct Vertex {
     glm::vec3 pos;     // position deplacee (avec relief)
@@ -105,7 +122,33 @@ void PlanetMesh::generate(const Params& params) {
     std::vector<Vertex> vertices(dirs.size());
     for (size_t i = 0; i < dirs.size(); ++i) {
         glm::vec3 d = dirs[i];
-        float e = fbm(d * params.baseFrequency + seedOffset, params.octaves, 2.0f, 0.5f);
+
+        // 1. Continents : FBM basse frequence + DOMAIN WARP (deplace l'echantillon
+        //    par du bruit) -> cotes naturelles, sinueuses, plutot que des blobs.
+        glm::vec3 sp = d * params.baseFrequency + seedOffset;
+        glm::vec3 warp(fbm(sp + glm::vec3(0.0f), 4, 2.0f, 0.5f),
+                       fbm(sp + glm::vec3(5.2f, 1.3f, 8.1f), 4, 2.0f, 0.5f),
+                       fbm(sp + glm::vec3(2.7f, 9.4f, 3.3f), 4, 2.0f, 0.5f));
+        float continent = fbm(sp + warp * 0.6f, params.octaves, 2.0f, 0.5f); // ~[-1,1]
+
+        // 2. Montagnes : bruit ridged limite aux terres (masque continental) et
+        //    organise en CHAINES (bandes ou le ridged est fort).
+        float landMask = glm::smoothstep(params.seaLevel, params.seaLevel + 0.22f, continent);
+        float ridge = ridged(d * (params.baseFrequency * 4.0f) + seedOffset * 1.7f, 5);
+        float ranges = glm::smoothstep(0.30f, 0.75f, ridge);   // bandes -> chaines
+        float mountains = ridge * ranges * landMask;           // 0..~1
+
+        // 3. Collines de detail fines (uniquement sur terre).
+        float hills = fbm(d * params.baseFrequency * 9.0f + seedOffset, 4, 2.0f, 0.5f)
+                      * 0.10f * landMask;
+
+        // Elevation finale : l'ocean garde sa profondeur (continent < 0), les
+        // terres recoivent montagnes + collines.
+        float e = continent < params.seaLevel
+                  ? continent
+                  : continent + mountains * 0.85f + hills;
+        e = glm::clamp(e, -1.0f, 1.3f);
+
         // Les oceans sont aplatis au niveau de la mer ; seules les terres montent.
         float land = glm::max(e, params.seaLevel);
         float radius = 1.0f + land * params.amplitude;

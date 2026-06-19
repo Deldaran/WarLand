@@ -438,8 +438,10 @@ int main() {
         glPatchParameteri(GL_PATCH_VERTICES, 3);
 
         // Parametres de la coquille nuageuse et de l'atmosphere (fine, realiste).
-        const float kCloudInner = 1.045f;
-        const float kCloudOuter = 1.100f;
+        // Coquille relevee pour passer AU-DESSUS des plus hautes montagnes
+        // (relief ridged : rayon des pics ~1.058) -> les sommets ne percent pas.
+        const float kCloudInner = 1.070f;
+        const float kCloudOuter = 1.105f;
         const float kCloudDrawRadius = 1.115f; // sphere de rendu (englobe la coquille)
         const float kAtmoRadius = 1.115f;      // sommet de l'atmosphere (fine)
         const float kAtmoDrawRadius = 1.13f;   // sphere de rendu de l'atmosphere
@@ -465,7 +467,7 @@ int main() {
         wl::PlanetMesh::Params planetParams;
         planetParams.subdivisions = 6;
         planetParams.seaLevel = 0.0f;
-        planetParams.amplitude = 0.04f;
+        planetParams.amplitude = 0.045f; // relief plus marque (montagnes ridged)
         wl::ProvinceMap::Params provParams;
         provParams.provinces = 900; // provinces fines -> pays de depart petits
         provParams.civs = 10;
