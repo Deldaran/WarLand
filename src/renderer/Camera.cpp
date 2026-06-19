@@ -106,7 +106,12 @@ glm::mat4 Camera::projectionMatrix() const {
     float alt = std::max(0.0f, m_distance - 1.0f); // altitude au-dessus du niveau de la mer
     float nearP = std::clamp(alt * 0.25f, 0.0008f, 2.0f);
     float farP = std::max(m_distance + 8.0f, 6.0f);
-    return glm::perspective(glm::radians(m_fovDeg), m_aspect, nearP, farP);
+    glm::mat4 proj = glm::perspective(glm::radians(m_fovDeg), m_aspect, nearP, farP);
+    // Reversed-Z : z_ndc -> 1 - z_ndc (combine avec clear=0 + GL_GREATER).
+    // Repartit la precision du depth buffer de facon quasi uniforme -> plus de
+    // z-fighting ni de "voir a travers" du sol jusqu'a l'orbite.
+    const glm::mat4 reverseZ(1, 0, 0, 0,  0, 1, 0, 0,  0, 0, -1, 0,  0, 0, 1, 1);
+    return reverseZ * proj;
 }
 
 } // namespace wl

@@ -47,6 +47,13 @@ Window::Window(int width, int height, const std::string& title)
 
     glfwSwapInterval(1); // VSync
 
+    // --- Reversed-Z : depth buffer inverse ([1,0]) pour une precision quasi
+    // uniforme du tout pres (1 m) jusqu'a l'orbite. Profondeur en [0,1] +
+    // comparaison GREATER + clear a 0. (Necessaire pour le zoom sans couture.)
+    glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+    glClearDepth(0.0);
+    glDepthFunc(GL_GREATER);
+
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);
     glViewport(0, 0, width, height);

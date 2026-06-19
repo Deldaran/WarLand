@@ -116,7 +116,8 @@ endif()
 
 # Chemin absolu vers les ressources, injecte a la compilation
 target_compile_definitions(WarLand PRIVATE
-    WARLAND_ASSETS_DIR="${CMAKE_SOURCE_DIR}")
+    WARLAND_ASSETS_DIR="${CMAKE_SOURCE_DIR}"
+    GLM_FORCE_DEPTH_ZERO_TO_ONE) # depth GL en [0,1] -> reversed-Z
 
 if(MSVC)
     target_compile_options(WarLand PRIVATE /W4 /permissive-)

@@ -822,8 +822,9 @@ int main() {
                 float ndcX = static_cast<float>(2.0 * pickX / window.width() - 1.0);
                 float ndcY = static_cast<float>(1.0 - 2.0 * pickY / window.height());
                 glm::mat4 invVP = glm::inverse(viewProj);
-                glm::vec4 nearH = invVP * glm::vec4(ndcX, ndcY, -1.0f, 1.0f);
-                glm::vec4 farH = invVP * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
+                // Depth en [0,1] reversed-Z : near = 1, far = 0.
+                glm::vec4 nearH = invVP * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
+                glm::vec4 farH = invVP * glm::vec4(ndcX, ndcY, 0.0f, 1.0f);
                 glm::vec3 pNear = glm::vec3(nearH) / nearH.w;
                 glm::vec3 pFar = glm::vec3(farH) / farH.w;
                 glm::vec3 rd = glm::normalize(pFar - pNear);
