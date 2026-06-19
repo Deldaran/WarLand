@@ -75,7 +75,9 @@ void main() {
     float elev = tcElev[0]*u + tcElev[1]*v + tcElev[2]*w;
 
     // --- Detail fin (rugosite) : ajoute du relief la ou c'est tres tesselle ---
-    float d = (fbm(pos * 45.0) - 0.5) * 0.006;
+    // Amplitude faible (+-0.00075) pour que la camera a hauteur d'oeil reste
+    // au-dessus de la surface visible (sinon elle "transperce" les bosses).
+    float d = (fbm(pos * 45.0) - 0.5) * 0.0015;
     pos += nrm * d;
 
     vec4 worldPos = uModel * vec4(pos, 1.0);

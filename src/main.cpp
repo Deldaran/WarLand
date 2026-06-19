@@ -790,13 +790,24 @@ int main() {
             glm::mat4 planetModel = glm::rotate(glm::mat4(1.0f),
                 planetSpin, glm::vec3(0.0f, 1.0f, 0.0f));
 
-            // --- Suivi de terrain : la camera ne passe pas sous le sol (hauteur
-            // d'homme au-dessus du relief sous elle). ---
+            // --- Suivi de terrain : la camera reste a hauteur d'oeil au-dessus du
+            // relief, SANS a-coups. heightAt() renvoie la hauteur du sommet le plus
+            // proche (fonction en escalier) -> on LISSE dans le temps pour eviter
+            // que la camera "saute" violemment quand le sommet le plus proche change.
+            static float groundFollow = -1.0f;
             if (viewMode == ViewMode::Planet && landT > 0.01f) {
                 glm::vec3 wdir = glm::normalize(camera.position());
                 glm::vec3 mdir = glm::transpose(glm::mat3(planetModel)) * wdir;
-                float minR = planet.heightAt(mdir) + 0.0025f; // ~hauteur d'homme + marge
-                if (camera.distance() < minR) camera.setDistance(minR);
+                float terrain = planet.heightAt(mdir);
+                float target = terrain + 0.0014f;       // hauteur d'oeil (au-dessus du detail)
+                if (groundFollow < 0.0f) groundFollow = target; // init
+                float k = std::clamp(static_cast<float>(dt) * 5.0f, 0.0f, 1.0f);
+                groundFollow += (target - groundFollow) * k;    // lissage temporel
+                // Plancher dur (anti-clip) au-dessus du detail de tessellation (+-0.00075).
+                float follow = std::max(groundFollow, terrain + 0.0010f);
+                if (camera.distance() < follow) camera.setDistance(follow);
+            } else {
+                groundFollow = -1.0f; // reset hors-sol
             }
 
             // --- Matrices et soleil (apres clamp camera) ---
@@ -962,8 +973,10 @@ int main() {
                 propLayers[activePlanet]->draw();
             }
 
-            // 2. Overlay (politique ou heatmap population) si une couche est active
-            if (overlayMode != OverlayMode::None) {
+            // 2. Overlay (politique ou heatmap population) si une couche est active.
+            //    MASQUE au sol (mode surface) : ces couches "carte" n'ont de sens
+            //    que vu d'en haut ; au sol on veut le vrai terrain, pas le calque.
+            if (overlayMode != OverlayMode::None && camera.mode() != wl::Camera::Mode::Surface) {
                 glEnable(GL_CULL_FACE);
                 glCullFace(GL_BACK);        // seul l'hemisphere visible
                 glDepthMask(GL_FALSE);
