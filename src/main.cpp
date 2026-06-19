@@ -805,6 +805,17 @@ int main() {
             glm::mat4 viewProj = proj * view;
             glm::vec3 camPos = camera.position();
 
+            // --- CAMERA-RELATIVE (floating origin) : pour les passes de SURFACE
+            // (terrain, props), on rend tout relativement a la camera -> les
+            // positions qui arrivent au GPU sont (monde - camera), donc petites
+            // pres de la camera => precision float intacte jusqu'a l'echelle
+            // humaine. La vue (rotation seule) place la camera a l'origine, et on
+            // plie la translation -camPos dans le modele. Resultat mathematiquement
+            // identique (memes coords clip), juste bien plus precis de pres.
+            glm::mat4 viewProjRel = proj * glm::mat4(glm::mat3(view));
+            glm::mat4 planetModelRel = glm::translate(glm::mat4(1.0f), -camPos) * planetModel;
+            const glm::vec3 camRelCenter = -camPos; // centre planete en repere relatif
+
             // Soleil (jour/nuit) en temps reel.
             float sunAngle = static_cast<float>(now) * 0.05f;
             glm::vec3 sunDir = glm::normalize(
@@ -911,9 +922,9 @@ int main() {
             if (wireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             if (tessOk) {
                 planetTessShader.bind();
-                planetTessShader.setMat4("uModel", planetModel);
-                planetTessShader.setMat4("uViewProj", viewProj);
-                planetTessShader.setVec3("uCameraPos", camPos);
+                planetTessShader.setMat4("uModel", planetModelRel);
+                planetTessShader.setMat4("uViewProj", viewProjRel);
+                planetTessShader.setVec3("uCameraPos", glm::vec3(0.0f)); // camera a l'origine
                 planetTessShader.setVec3("uSunDir", sunDir);
                 planetTessShader.setFloat("uSeaLevel", planetParams.seaLevel);
                 planetTessShader.setVec2("uScreen",
@@ -923,9 +934,9 @@ int main() {
                 planet.drawPatches();
             } else {
                 planetShader.bind();
-                planetShader.setMat4("uModel", planetModel);
-                planetShader.setMat4("uViewProj", viewProj);
-                planetShader.setVec3("uCameraPos", camPos);
+                planetShader.setMat4("uModel", planetModelRel);
+                planetShader.setMat4("uViewProj", viewProjRel);
+                planetShader.setVec3("uCameraPos", glm::vec3(0.0f));
                 planetShader.setVec3("uSunDir", sunDir);
                 planetShader.setFloat("uSeaLevel", planetParams.seaLevel);
                 planet.draw();
@@ -941,9 +952,10 @@ int main() {
                 glDisable(GL_BLEND);
                 glDisable(GL_CULL_FACE); // quads simple-face orientes vers la camera
                 propShader.bind();
-                propShader.setMat4("uModel", planetModel);
-                propShader.setMat4("uViewProj", viewProj);
-                propShader.setVec3("uCameraPos", camPos);
+                propShader.setMat4("uModel", planetModelRel);
+                propShader.setMat4("uViewProj", viewProjRel);
+                propShader.setVec3("uCameraPos", glm::vec3(0.0f)); // camera a l'origine
+                propShader.setVec3("uPlanetCenter", camRelCenter);  // centre planete (relatif)
                 propShader.setVec3("uSunDir", sunDir);
                 propShader.setFloat("uMaxDist", 0.18f);
                 propShader.setInt("uAtlas", 0);

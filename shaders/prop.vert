@@ -11,15 +11,16 @@ layout(location = 4) in float aLayer;  // couche dans la texture array
 
 uniform mat4 uModel;
 uniform mat4 uViewProj;
-uniform vec3 uCameraPos;  // position camera (monde)
-uniform float uMaxDist;   // distance d'affichage (au-dela : invisible)
+uniform vec3 uCameraPos;    // position camera (0 en rendu camera-relative)
+uniform vec3 uPlanetCenter; // centre de la planete (meme repere que center)
+uniform float uMaxDist;     // distance d'affichage (au-dela : invisible)
 
 out vec2 vUV;
 flat out float vLayer;
 
 void main() {
     vec3 center = vec3(uModel * vec4(aInstPos, 1.0));
-    vec3 up = normalize(center);              // "haut" local = normale a la sphere
+    vec3 up = normalize(center - uPlanetCenter); // "haut" = normale a la sphere
     vec3 toCam = uCameraPos - center;
     float dist = length(toCam);
     toCam /= max(dist, 1e-5);
