@@ -503,9 +503,10 @@ int main() {
         int activePlanet = 0, prevPlanet = 0;
         int timeUnit = 3, timeMult = 1; // echelle de temps (defaut : Mois x1)
 
-        // Vue : planete (zoom sur un monde) ou systeme (orbites des planetes).
-        enum class ViewMode { Planet, System };
-        ViewMode viewMode = ViewMode::Planet;
+        // Espace unifie (facon Kerbal) : un seul monde 3D contenant l'etoile au
+        // centre et toutes les planetes en orbite. La camera est centree sur une
+        // planete (activePlanet) ; en dezoomant on voit le systeme, en cliquant
+        // une autre planete on la rejoint. Plus de "vue carte" separee.
         std::vector<float> orbitRadius(kNumPlanets);
         std::vector<float> orbitSpeed(kNumPlanets);
         std::vector<float> orbitPhase(kNumPlanets);
@@ -809,7 +810,7 @@ int main() {
             // proche (fonction en escalier) -> on LISSE dans le temps pour eviter
             // que la camera "saute" violemment quand le sommet le plus proche change.
             static float groundFollow = -1.0f;
-            if (viewMode == ViewMode::Planet && landT > 0.01f) {
+            if (landT > 0.01f) {
                 glm::vec3 wdir = glm::normalize(camera.position());
                 glm::vec3 mdir = glm::transpose(glm::mat3(planetModel)) * wdir;
                 float terrain = planet.heightAt(mdir);
@@ -842,11 +843,6 @@ int main() {
             glm::mat4 planetModelRel = glm::translate(glm::mat4(1.0f), -camPos) * planetModel;
             const glm::vec3 camRelCenter = -camPos; // centre planete en repere relatif
 
-            // Soleil (jour/nuit) en temps reel.
-            float sunAngle = static_cast<float>(now) * 0.05f;
-            glm::vec3 sunDir = glm::normalize(
-                glm::vec3(std::cos(sunAngle), 0.25f, std::sin(sunAngle)));
-
             // --- Position des planetes dans le systeme (orbites animees) ---
             std::vector<glm::vec3> orbitPos(kNumPlanets);
             for (int i = 0; i < kNumPlanets; ++i) {
@@ -854,50 +850,49 @@ int main() {
                 orbitPos[i] = glm::vec3(std::cos(a), 0.0f, std::sin(a)) * orbitRadius[i];
             }
 
-            // --- Picking : ray-sphere depuis le curseur ---
+            // L'etoile est au CENTRE du systeme (origine du monde) et eclaire
+            // chaque planete : direction du soleil = vers l'origine depuis la
+            // planete. La rotation de la planete cree le cycle jour/nuit.
+            glm::vec3 focusWorld = orbitPos[activePlanet];
+            glm::vec3 sunDir = glm::normalize(-focusWorld);
+            // Position MONDE de la camera = centre de la planete suivie + offset
+            // orbital local. Tout est rendu relativement a camWorld (camera-relative).
+            glm::vec3 camWorld = focusWorld + camPos;
+
+            // --- Picking : rayon depuis le curseur, en repere RELATIF (camera a
+            // l'origine). On teste toutes les planetes (a leur position relative).
             if (doPick) {
                 float ndcX = static_cast<float>(2.0 * pickX / window.width() - 1.0);
                 float ndcY = static_cast<float>(1.0 - 2.0 * pickY / window.height());
-                glm::mat4 invVP = glm::inverse(viewProj);
-                // Depth en [0,1] reversed-Z : near = 1, far = 0.
-                glm::vec4 nearH = invVP * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
-                glm::vec4 farH = invVP * glm::vec4(ndcX, ndcY, 0.0f, 1.0f);
+                glm::mat4 invVP = glm::inverse(viewProjRel); // repere relatif
+                glm::vec4 nearH = invVP * glm::vec4(ndcX, ndcY, 1.0f, 1.0f); // near=1
+                glm::vec4 farH = invVP * glm::vec4(ndcX, ndcY, 0.0f, 1.0f);  // far=0
                 glm::vec3 pNear = glm::vec3(nearH) / nearH.w;
                 glm::vec3 pFar = glm::vec3(farH) / farH.w;
-                glm::vec3 rd = glm::normalize(pFar - pNear);
+                glm::vec3 rd = glm::normalize(pFar - pNear); // depuis l'origine (camera)
 
-                if (viewMode == ViewMode::Planet) {
-                    // Selection d'une province sur la planete active (sphere a l'origine).
-                    float b = glm::dot(camPos, rd);
-                    float c = glm::dot(camPos, camPos) - 1.0f;
+                int hitPlanet = -1; float bestT = 1e9f;
+                for (int i = 0; i < kNumPlanets; ++i) {
+                    glm::vec3 center = orbitPos[i] - camWorld; // position relative
+                    float b = glm::dot(-center, rd);
+                    float r = (i == activePlanet) ? 1.0f : 1.05f; // rayon de clic
+                    float c = glm::dot(center, center) - r * r;
                     float disc = b * b - c;
-                    if (disc >= 0.0f) {
-                        float t = -b - std::sqrt(disc);
-                        if (t < 0.0f) t = -b + std::sqrt(disc);
-                        if (t >= 0.0f) {
-                            glm::vec3 hit = camPos + t * rd;
-                            glm::vec3 modelDir = glm::transpose(glm::mat3(planetModel)) * hit;
-                            provinces.pick(modelDir, selectedProvince, selectedCiv);
-                        }
-                    }
-                } else {
-                    // Vue systeme : clic sur une planete -> on voyage vers elle.
-                    int hitPlanet = -1; float bestT = 1e9f;
-                    for (int i = 0; i < kNumPlanets; ++i) {
-                        glm::vec3 oc = camPos - orbitPos[i];
-                        float b = glm::dot(oc, rd);
-                        float c = glm::dot(oc, oc) - 1.1f * 1.1f; // rayon de clic
-                        float disc = b * b - c;
-                        if (disc < 0.0f) continue;
-                        float t = -b - std::sqrt(disc);
-                        if (t < 0.0f) t = -b + std::sqrt(disc);
-                        if (t >= 0.0f && t < bestT) { bestT = t; hitPlanet = i; }
-                    }
-                    if (hitPlanet >= 0) {
-                        activePlanet = hitPlanet;
-                        viewMode = ViewMode::Planet;
-                        camera.setDistance(3.0f);
-                    }
+                    if (disc < 0.0f) continue;
+                    float t = -b - std::sqrt(disc);
+                    if (t < 0.0f) t = -b + std::sqrt(disc);
+                    if (t >= 0.0f && t < bestT) { bestT = t; hitPlanet = i; }
+                }
+                if (hitPlanet == activePlanet) {
+                    // Clic sur la planete suivie -> selection d'une province.
+                    glm::vec3 center = orbitPos[activePlanet] - camWorld;
+                    glm::vec3 hit = rd * bestT - center;            // point local (planete)
+                    glm::vec3 modelDir = glm::transpose(glm::mat3(planetModel)) * hit;
+                    provinces.pick(modelDir, selectedProvince, selectedCiv);
+                } else if (hitPlanet >= 0) {
+                    // Clic sur une AUTRE planete -> on la rejoint (voyage).
+                    activePlanet = hitPlanet;
+                    camera.setDistance(4.0f);
                 }
             }
 
@@ -920,40 +915,52 @@ int main() {
                 glDepthMask(GL_TRUE);
             }
 
-          if (viewMode == ViewMode::System) {
-            // ===== VUE SYSTEME : etoile centrale + planetes en orbite =====
+            // ===== ESPACE UNIFIE (Kerbal) : etoile + autres planetes + planete suivie =====
+            // Helper : modele d'un objet MONDE rendu en repere camera-relative.
+            auto relModel = [&](const glm::vec3& worldPos, const glm::mat4& m) {
+                return glm::translate(glm::mat4(1.0f), worldPos - camWorld) * m;
+            };
+
             glEnable(GL_DEPTH_TEST); glDepthMask(GL_TRUE); glDisable(GL_BLEND);
             glDisable(GL_CULL_FACE);
-            // Etoile (sphere brillante).
+
+            // Etoile centrale (sphere brillante a l'origine du monde).
             borderShader.bind();
-            borderShader.setMat4("uViewProj", viewProj);
-            borderShader.setMat4("uModel", glm::scale(glm::mat4(1.0f), glm::vec3(1.7f)));
-            borderShader.setVec3("uColor", glm::vec3(1.0f, 0.88f, 0.45f));
+            borderShader.setMat4("uViewProj", viewProjRel);
+            borderShader.setMat4("uModel",
+                relModel(glm::vec3(0.0f), glm::scale(glm::mat4(1.0f), glm::vec3(1.7f))));
+            borderShader.setVec3("uColor", glm::vec3(1.0f, 0.9f, 0.55f));
             atmosphere.draw();
-            // Anneaux d'orbite.
-            borderShader.setVec3("uColor", glm::vec3(0.25f, 0.28f, 0.38f));
-            glBindVertexArray(orbitVao);
-            for (int i = 0; i < kNumPlanets; ++i) {
-                borderShader.setMat4("uModel",
-                    glm::scale(glm::mat4(1.0f), glm::vec3(orbitRadius[i])));
-                glDrawArrays(GL_LINE_LOOP, 0, 96);
+
+            // Anneaux d'orbite (visibles surtout quand on a dezoome).
+            if (camera.distance() > 3.0f) {
+                borderShader.setVec3("uColor", glm::vec3(0.22f, 0.25f, 0.35f));
+                glBindVertexArray(orbitVao);
+                for (int i = 0; i < kNumPlanets; ++i) {
+                    borderShader.setMat4("uModel",
+                        relModel(glm::vec3(0.0f), glm::scale(glm::mat4(1.0f), glm::vec3(orbitRadius[i]))));
+                    glDrawArrays(GL_LINE_LOOP, 0, 96);
+                }
+                glBindVertexArray(0);
             }
-            glBindVertexArray(0);
-            // Planetes (terrain, eclairees par l'etoile centrale).
+
+            // Autres planetes (globes simples, eclairees par l'etoile centrale).
+            glEnable(GL_CULL_FACE); glCullFace(GL_BACK);
             planetShader.bind();
-            planetShader.setMat4("uViewProj", viewProj);
-            planetShader.setVec3("uCameraPos", camPos);
+            planetShader.setMat4("uViewProj", viewProjRel);
+            planetShader.setVec3("uCameraPos", glm::vec3(0.0f));
             planetShader.setFloat("uSeaLevel", planetParams.seaLevel);
             for (int i = 0; i < kNumPlanets; ++i) {
-                glm::mat4 m = glm::translate(glm::mat4(1.0f), orbitPos[i])
-                            * glm::rotate(glm::mat4(1.0f), planetSpin, glm::vec3(0, 1, 0))
-                            * glm::scale(glm::mat4(1.0f), glm::vec3(i == activePlanet ? 1.0f : 0.85f));
-                planetShader.setMat4("uModel", m);
-                planetShader.setVec3("uSunDir", glm::normalize(-orbitPos[i])); // lumiere de l'etoile
+                if (i == activePlanet) continue; // la planete suivie est rendue en detail
+                glm::mat4 spin = glm::rotate(glm::mat4(1.0f), planetSpin, glm::vec3(0, 1, 0));
+                planetShader.setMat4("uModel", relModel(orbitPos[i], spin));
+                planetShader.setVec3("uSunDir", glm::normalize(-orbitPos[i]));
                 planetMeshes[i]->draw();
             }
-          } else {
-            // ===== VUE PLANETE =====
+            glDisable(GL_CULL_FACE);
+
+          {
+            // ===== PLANETE SUIVIE (detail complet) =====
             // 1. La planete (opaque, depth on) -> pipeline TESSELLE (LOD adaptatif)
             glEnable(GL_DEPTH_TEST);
             glDepthMask(GL_TRUE);
@@ -1157,17 +1164,14 @@ int main() {
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
             bool toggleView = false;
+            bool zoomedOut = camera.distance() > 8.0f; // "vue systeme" = on a dezoome
             drawUI(runner, snap, layers, camera, planet, provinces,
-                   activePlanet, kNumPlanets, viewMode == ViewMode::System, toggleView,
+                   activePlanet, kNumPlanets, zoomedOut, toggleView,
                    timeUnit, timeMult, fpsLimit, selectedProvince, selectedCiv, fps);
             if (toggleView) {
-                if (viewMode == ViewMode::System) {
-                    viewMode = ViewMode::Planet;
-                    camera.setDistance(3.0f);
-                } else {
-                    viewMode = ViewMode::System;
-                    camera.setDistance(28.0f);
-                }
+                // Raccourci : dezoomer pour voir le systeme, ou revenir en orbite.
+                if (camera.mode() == wl::Camera::Mode::Surface) camera.enterOrbit();
+                camera.setDistance(zoomedOut ? 3.0f : 22.0f);
             }
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
