@@ -25,6 +25,7 @@
 #include "renderer/planet/PlanetMesh.h"
 #include "renderer/overlay/ProvinceMap.h"
 #include "renderer/props/PropLayer.h"
+#include "renderer/Skybox.h"
 #include "simulation/SimulationWorld.h"
 #include "simulation/SimulationRunner.h"
 
@@ -414,7 +415,10 @@ int main() {
         wl::Shader cloudShader;
         wl::Shader cityShader;
         wl::Shader propShader; // props nature en billboards 2D (arbres, rochers...)
-        if (!propShader.loadFromFiles(assets + "/shaders/prop.vert",
+        wl::Shader skyboxShader;
+        if (!skyboxShader.loadFromFiles(assets + "/shaders/skybox.vert",
+                                        assets + "/shaders/skybox.frag") ||
+            !propShader.loadFromFiles(assets + "/shaders/prop.vert",
                                       assets + "/shaders/prop.frag") ||
             !planetShader.loadFromFiles(assets + "/shaders/planet.vert",
                                         assets + "/shaders/planet.frag") ||
@@ -484,6 +488,10 @@ int main() {
             planetMeshes.push_back(std::move(mesh));
             planetProvinces.push_back(std::move(prov));
         }
+        // Skybox (nebuleuse) : fond etoile derriere toute la scene.
+        wl::Skybox skybox;
+        skybox.load(assets + "/assets/ressources/nebula", "jettelly_space_nebulas_blue");
+
         // Props nature (billboards 2D) disperses sur chaque monde.
         std::vector<std::unique_ptr<wl::PropLayer>> propLayers;
         for (int i = 0; i < kNumPlanets; ++i) {
@@ -896,6 +904,21 @@ int main() {
             // --- Rendu ---
             glClearColor(0.01f, 0.01f, 0.03f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            // Skybox (nebuleuse) en fond : rotation de la vue seule, sans depth,
+            // tout le reste se dessine par-dessus.
+            if (skybox.valid()) {
+                glDisable(GL_DEPTH_TEST);
+                glDepthMask(GL_FALSE);
+                glDisable(GL_CULL_FACE);
+                glDisable(GL_BLEND);
+                skyboxShader.bind();
+                skyboxShader.setMat4("uViewProj", proj * glm::mat4(glm::mat3(view)));
+                skyboxShader.setInt("uSky", 0);
+                skybox.draw();
+                glEnable(GL_DEPTH_TEST);
+                glDepthMask(GL_TRUE);
+            }
 
           if (viewMode == ViewMode::System) {
             // ===== VUE SYSTEME : etoile centrale + planetes en orbite =====
