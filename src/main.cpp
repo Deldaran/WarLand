@@ -561,6 +561,10 @@ int main() {
         double lastTime = glfwGetTime();
         double lastMouseX = 0, lastMouseY = 0;
         bool dragging = false;
+        // Altitude de l'oeil au-dessus du sol LOCAL (mise a jour par le suivi de
+        // terrain) -> sert a regler la vitesse de deplacement au sol (et non
+        // l'altitude au-dessus du niveau de la mer, qui s'emballe en montagne).
+        float surfEyeAlt = 0.0008f;
 
         // Etat de selection (picking).
         int selectedProvince = -1;
@@ -656,8 +660,10 @@ int main() {
                 if (glfwGetKey(wh, GLFW_KEY_D) == GLFW_PRESS) strafe += 1.0f;
                 if (glfwGetKey(wh, GLFW_KEY_A) == GLFW_PRESS) strafe -= 1.0f;
                 if (fwd != 0.0f || strafe != 0.0f) {
-                    float alt = std::clamp(camera.distance() - 1.0f, 0.002f, 2.0f);
-                    camera.surfaceMove(fwd, strafe, alt * 1.6f * static_cast<float>(dt));
+                    // Vitesse calee sur l'altitude au-dessus du sol LOCAL (constante
+                    // au ras du sol) -> plus de "bond" en montagne. Echelle douce.
+                    float alt = std::clamp(surfEyeAlt, 0.0004f, 0.5f);
+                    camera.surfaceMove(fwd, strafe, alt * 2.0f * static_cast<float>(dt));
                 }
             }
 
@@ -799,13 +805,14 @@ int main() {
                 glm::vec3 wdir = glm::normalize(camera.position());
                 glm::vec3 mdir = glm::transpose(glm::mat3(planetModel)) * wdir;
                 float terrain = planet.heightAt(mdir);
-                float target = terrain + 0.0014f;       // hauteur d'oeil (au-dessus du detail)
+                float target = terrain + 0.0008f;       // hauteur d'oeil (parmi les arbres)
                 if (groundFollow < 0.0f) groundFollow = target; // init
                 float k = std::clamp(static_cast<float>(dt) * 5.0f, 0.0f, 1.0f);
                 groundFollow += (target - groundFollow) * k;    // lissage temporel
-                // Plancher dur (anti-clip) au-dessus du detail de tessellation (+-0.00075).
-                float follow = std::max(groundFollow, terrain + 0.0010f);
+                // Plancher dur (anti-clip) au-dessus du detail de tessellation (+-0.0002).
+                float follow = std::max(groundFollow, terrain + 0.0005f);
                 if (camera.distance() < follow) camera.setDistance(follow);
+                surfEyeAlt = camera.distance() - terrain; // pour la vitesse de marche
             } else {
                 groundFollow = -1.0f; // reset hors-sol
             }

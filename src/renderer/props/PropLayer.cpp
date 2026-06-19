@@ -218,10 +218,15 @@ void PropLayer::build(const PlanetMesh& mesh, uint32_t seed, const std::string& 
             int layer = L.start[cat] +
                 int(hash(uint32_t(i), uint32_t(k * 29 + 4)) * L.count[cat]) % std::max(1, L.count[cat]);
 
-            float jx = (hash(uint32_t(i), uint32_t(k * 7 + 3)) - 0.5f) * 0.018f;
-            float jy = (hash(uint32_t(i), uint32_t(k * 11 + 5)) - 0.5f) * 0.018f;
+            // Jitter tangentiel reduit (sur les pentes, un gros jitter avec le
+            // rayon du sommet ferait flotter/enfoncer le prop).
+            float jx = (hash(uint32_t(i), uint32_t(k * 7 + 3)) - 0.5f) * 0.008f;
+            float jy = (hash(uint32_t(i), uint32_t(k * 11 + 5)) - 0.5f) * 0.008f;
             glm::vec3 jd = glm::normalize(d + east * jx + north * jy);
-            glm::vec3 p = jd * radius;
+            // Base legerement ENTERREE (-0.0004) : couvre le micro-relief de la
+            // tessellation (+-0.0002) + le jitter -> le prop ne flotte jamais
+            // (sa base d'herbe reste plantee dans le sol).
+            glm::vec3 p = jd * (radius - 0.0004f);
             float s = catalog()[cat].size *
                       (0.75f + 0.5f * hash(uint32_t(i), uint32_t(k * 23 + 9)));
             inst.insert(inst.end(), {p.x, p.y, p.z, s, float(layer)});
