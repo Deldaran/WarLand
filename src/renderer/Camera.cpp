@@ -113,7 +113,9 @@ glm::mat4 Camera::projectionMatrix() const {
         // Orbite : near adaptatif selon l'altitude au-dessus du niveau de la mer.
         float alt = std::max(0.0f, m_distance - 1.0f);
         nearP = std::clamp(alt * 0.25f, 0.0008f, 2.0f);
-        farP = std::max(m_distance + 8.0f, 6.0f);
+        // Far genereux : en dezoomant on doit voir TOUTES les planetes du systeme
+        // (jusqu'a ~340 unites de la camera). Le reversed-Z encaisse le grand far.
+        farP = m_distance + 320.0f;
     }
     glm::mat4 proj = glm::perspective(glm::radians(m_fovDeg), m_aspect, nearP, farP);
     // Reversed-Z : z_ndc -> 1 - z_ndc (combine avec clear=0 + GL_GREATER).

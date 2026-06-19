@@ -510,8 +510,11 @@ int main() {
         std::vector<float> orbitRadius(kNumPlanets);
         std::vector<float> orbitSpeed(kNumPlanets);
         std::vector<float> orbitPhase(kNumPlanets);
+        // Echelle coherente : planetes de rayon 1, etoile bien plus grosse, et
+        // orbites largement ecartees (planetes = petits points autour de l'etoile).
+        const float kSunRadius = 12.0f;
         for (int i = 0; i < kNumPlanets; ++i) {
-            orbitRadius[i] = 5.0f + i * 4.0f;
+            orbitRadius[i] = 45.0f + i * 38.0f; // 45, 83, 121
             orbitSpeed[i] = 0.06f / (1.0f + i * 0.5f); // les planetes externes plus lentes
             orbitPhase[i] = i * 2.1f;
         }
@@ -875,7 +878,10 @@ int main() {
                 for (int i = 0; i < kNumPlanets; ++i) {
                     glm::vec3 center = orbitPos[i] - camWorld; // position relative
                     float b = glm::dot(-center, rd);
-                    float r = (i == activePlanet) ? 1.0f : 1.05f; // rayon de clic
+                    // Rayon de clic : exact pour la planete suivie, agrandi pour les
+                    // autres (sinon impossible a cliquer quand elles sont lointaines).
+                    float dist = glm::length(center);
+                    float r = (i == activePlanet) ? 1.0f : std::max(1.5f, dist * 0.04f);
                     float c = glm::dot(center, center) - r * r;
                     float disc = b * b - c;
                     if (disc < 0.0f) continue;
@@ -907,8 +913,13 @@ int main() {
                 glDepthMask(GL_FALSE);
                 glDisable(GL_CULL_FACE);
                 glDisable(GL_BLEND);
+                // Projection DEDIEE a near fixe : le cube de la skybox (rayon ~1.7)
+                // ne doit jamais etre clippe par le near plane (qui monte a 2.0 en
+                // orbite eloignee). Depth desactive -> pas besoin de reversed-Z.
+                glm::mat4 skyProj = glm::perspective(glm::radians(55.0f),
+                    window.aspectRatio(), 0.05f, 10.0f);
                 skyboxShader.bind();
-                skyboxShader.setMat4("uViewProj", proj * glm::mat4(glm::mat3(view)));
+                skyboxShader.setMat4("uViewProj", skyProj * glm::mat4(glm::mat3(view)));
                 skyboxShader.setInt("uSky", 0);
                 skybox.draw();
                 glEnable(GL_DEPTH_TEST);
@@ -928,12 +939,12 @@ int main() {
             borderShader.bind();
             borderShader.setMat4("uViewProj", viewProjRel);
             borderShader.setMat4("uModel",
-                relModel(glm::vec3(0.0f), glm::scale(glm::mat4(1.0f), glm::vec3(1.7f))));
+                relModel(glm::vec3(0.0f), glm::scale(glm::mat4(1.0f), glm::vec3(kSunRadius))));
             borderShader.setVec3("uColor", glm::vec3(1.0f, 0.9f, 0.55f));
             atmosphere.draw();
 
             // Anneaux d'orbite (visibles surtout quand on a dezoome).
-            if (camera.distance() > 3.0f) {
+            if (camera.distance() > 8.0f) {
                 borderShader.setVec3("uColor", glm::vec3(0.22f, 0.25f, 0.35f));
                 glBindVertexArray(orbitVao);
                 for (int i = 0; i < kNumPlanets; ++i) {
@@ -1164,14 +1175,14 @@ int main() {
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
             bool toggleView = false;
-            bool zoomedOut = camera.distance() > 8.0f; // "vue systeme" = on a dezoome
+            bool zoomedOut = camera.distance() > 30.0f; // "vue systeme" = on a dezoome
             drawUI(runner, snap, layers, camera, planet, provinces,
                    activePlanet, kNumPlanets, zoomedOut, toggleView,
                    timeUnit, timeMult, fpsLimit, selectedProvince, selectedCiv, fps);
             if (toggleView) {
                 // Raccourci : dezoomer pour voir le systeme, ou revenir en orbite.
                 if (camera.mode() == wl::Camera::Mode::Surface) camera.enterOrbit();
-                camera.setDistance(zoomedOut ? 3.0f : 22.0f);
+                camera.setDistance(zoomedOut ? 3.0f : 180.0f);
             }
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

@@ -59,7 +59,7 @@ private:
     float m_lookPitch = -8.0f;             // elevation du regard (degres)
 
     float m_minDistance = 1.0008f;
-    float m_maxDistance = 40.0f;
+    float m_maxDistance = 300.0f; // assez pour voir tout le systeme depuis une planete
 };
 
 } // namespace wl
