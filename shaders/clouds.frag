@@ -91,8 +91,12 @@ void main() {
     if (outer.y < 0.0) discard;
     float tStart = max(outer.x, 0.0);
     float tEnd = outer.y;
+    // On ne clippe a la planete QUE si le rayon la touche vraiment. raySphere
+    // renvoie (1,-1) quand il rate -> sans ce test, les rayons du LIMBE (qui
+    // ratent la sphere rayon 1) clampaient tEnd a 1.0 et coupaient les nuages
+    // net au cercle de rayon 1 (sous les montagnes). Hit valide : x <= y.
     vec2 planet = raySphere(ro, rd, uPlanetRadius);
-    if (planet.x > 0.0) tEnd = min(tEnd, planet.x);
+    if (planet.x <= planet.y && planet.x > 0.0) tEnd = min(tEnd, planet.x);
     if (tEnd <= tStart) discard;
 
     int steps = uSteps;
